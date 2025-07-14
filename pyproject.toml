@@ -1,12 +1,10 @@
 [project]
 name = "cisa-kev"
 version = "0.1.0"
-description = "Add your description here"
+description = "Interactive dashboard for CISA's Known Exploited Vulnerabilities (KEV) catalog"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "requests>=2.32.4",
-    "flask",
-    "gunicorn",
+    "requests>=2.32.0",
     "jinja2>=3.0.0",
 ]
