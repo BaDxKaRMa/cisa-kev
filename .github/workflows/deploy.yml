@@ -21,9 +21,9 @@ jobs:
           curl -Ls https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install dependencies with uv
-        run: uv pip install --system --no-cache --project .
+        run: uv sync
       - name: Generate static site
-        run: python app/generate_static.py
+        run: uv run python app/generate_static.py
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
