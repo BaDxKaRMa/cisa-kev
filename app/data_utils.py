@@ -23,12 +23,22 @@ def load_local_data():
 
 
 def update_if_changed():
-    remote = fetch_cisa_data()
-    local = load_local_data()
-    if local != remote:
-        # Ensure the data directory exists
-        os.makedirs(os.path.dirname(LOCAL_PATH), exist_ok=True)
-        with open(LOCAL_PATH, "w") as f:
-            json.dump(remote, f, indent=2)
-        return True  # Data changed
-    return False  # No change
+    try:
+        remote = fetch_cisa_data()
+        local = load_local_data()
+        if local != remote:
+            # Ensure the data directory exists
+            os.makedirs(os.path.dirname(LOCAL_PATH), exist_ok=True)
+            with open(LOCAL_PATH, "w") as f:
+                json.dump(remote, f, indent=2)
+            print("Data updated successfully")
+            return True  # Data changed
+        print("No changes in data")
+        return False  # No change
+    except Exception as e:
+        print(f"Error updating data: {e}")
+        # If there's an error fetching remote data, try to use local data
+        local = load_local_data()
+        if local is None:
+            raise e  # Re-raise if no local data exists
+        return False  # Use existing local data

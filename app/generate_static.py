@@ -10,11 +10,12 @@ from app.data_utils import load_local_data, update_if_changed
 
 
 def main():
-    # Only update and generate if data changed
+    # Update data and always generate site
     changed = update_if_changed()
-    if not changed:
-        print("No new data. Exiting.")
-        return
+    print(f"Data changed: {changed}")
+
+    # Always generate the site (for GitHub Actions deployment)
+    # In CI/CD, we want to ensure the site is always built
 
     # Prepare output directory
     output_dir = os.path.join(os.path.dirname(__file__), "..", "site")
@@ -47,8 +48,19 @@ def main():
         os.path.dirname(__file__), "..", "data", "known_exploited_vulnerabilities.json"
     )
     data_dst = os.path.join(output_dir, "known_exploited_vulnerabilities.json")
-    shutil.copy(data_src, data_dst)
-    print("Static site generated in 'site/' directory, including JSON data file.")
+    if os.path.exists(data_src):
+        shutil.copy(data_src, data_dst)
+        print("JSON data file copied to site directory")
+    else:
+        print("Warning: JSON data file not found")
+
+    print("Static site generated in 'site/' directory")
+
+    # List contents for debugging
+    print("Generated files:")
+    for root, dirs, files in os.walk(output_dir):
+        for file in files:
+            print(f"  {os.path.relpath(os.path.join(root, file), output_dir)}")
 
 
 if __name__ == "__main__":

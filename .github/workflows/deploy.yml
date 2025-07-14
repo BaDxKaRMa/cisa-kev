@@ -23,8 +23,12 @@ jobs:
       - name: Install dependencies with uv
         run: uv sync
       - name: Generate static site
-        run: uv run python app/generate_static.py
+        run: |
+          uv run python app/generate_static.py
+          echo "Contents of site directory:"
+          ls -la site/
       - name: Deploy to GitHub Pages
+        if: success()
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -8,4 +8,5 @@ dependencies = [
     "requests>=2.32.4",
     "flask",
     "gunicorn",
+    "jinja2>=3.0.0",
 ]
