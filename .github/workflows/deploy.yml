@@ -25,6 +25,8 @@ jobs:
       - name: Generate static site
         run: |
           uv run python app/generate_static.py
+          # Create .nojekyll file to prevent GitHub from ignoring files that start with underscores
+          touch site/.nojekyll
           echo "Contents of site directory:"
           ls -la site/
       - name: Deploy to GitHub Pages
@@ -33,3 +35,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
+          force_orphan: true  # Create a new orphan branch with only the latest commit

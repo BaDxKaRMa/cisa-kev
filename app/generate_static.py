@@ -17,7 +17,7 @@ def main():
     # Always generate the site (for GitHub Actions deployment)
     # In CI/CD, we want to ensure the site is always built
 
-    # Prepare output directory
+    # Prepare output directory - this will be the root of GitHub Pages
     output_dir = os.path.join(os.path.dirname(__file__), "..", "site")
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)

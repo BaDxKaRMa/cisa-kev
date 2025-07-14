@@ -2,7 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch JSON data and populate table, then initialize controls
-    fetch('known_exploited_vulnerabilities.json')
+    fetch('./known_exploited_vulnerabilities.json')
       .then(response => response.json())
       .then(data => {
         const tbody = document.getElementById('main-table-body');
