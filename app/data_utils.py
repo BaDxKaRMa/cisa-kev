@@ -26,6 +26,8 @@ def update_if_changed():
     remote = fetch_cisa_data()
     local = load_local_data()
     if local != remote:
+        # Ensure the data directory exists
+        os.makedirs(os.path.dirname(LOCAL_PATH), exist_ok=True)
         with open(LOCAL_PATH, "w") as f:
             json.dump(remote, f, indent=2)
         return True  # Data changed
