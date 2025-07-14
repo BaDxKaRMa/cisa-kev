@@ -41,7 +41,14 @@ def main():
     static_src = os.path.join(os.path.dirname(__file__), "static")
     static_dst = os.path.join(output_dir, "static")
     shutil.copytree(static_src, static_dst)
-    print("Static site generated in 'site/' directory.")
+
+    # Copy JSON data file to site directory
+    data_src = os.path.join(
+        os.path.dirname(__file__), "..", "data", "known_exploited_vulnerabilities.json"
+    )
+    data_dst = os.path.join(output_dir, "known_exploited_vulnerabilities.json")
+    shutil.copy(data_src, data_dst)
+    print("Static site generated in 'site/' directory, including JSON data file.")
 
 
 if __name__ == "__main__":

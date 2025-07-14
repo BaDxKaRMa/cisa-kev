@@ -1,10 +1,32 @@
 // CISA KEV Dashboard JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize main table controls for unified view
-    initMainTableControls();
-    // Highlight due dates initially
-    highlightDueDates();
+    // Fetch JSON data and populate table, then initialize controls
+    fetch('known_exploited_vulnerabilities.json')
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById('main-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        data.vulnerabilities.forEach(v => {
+          const row = document.createElement('tr');
+          row.setAttribute('data-date-added', v.dateAdded);
+          row.setAttribute('data-ransomware', v.knownRansomwareCampaignUse);
+          row.innerHTML = `
+            <td>${v.cveID}</td>
+            <td>${v.vulnerabilityName}</td>
+            <td>${v.vendorProject}</td>
+            <td>${v.product}</td>
+            <td>${v.dateAdded}</td>
+            <td>${v.dueDate}</td>
+            <td>${v.knownRansomwareCampaignUse}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        // Now initialize controls and highlighting
+        initMainTableControls();
+        highlightDueDates();
+      });
 });
 
 // Function to highlight rows based on dates
