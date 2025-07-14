@@ -7,7 +7,7 @@
 
 A modern, interactive dashboard for monitoring and exploring CISA's Known Exploited Vulnerabilities (KEV) catalog. This project automatically fetches the latest data from CISA and presents it through an accessible, searchable web interface with filtering options, highlights for critical vulnerabilities, and CSV export capabilities.
 
-![Dashboard Preview](https://via.placeholder.com/800x400?text=CISA+KEV+Dashboard+Preview)
+![Dashboard Preview](./data/preview.png)
 
 ## 🚀 Features
 
@@ -121,6 +121,7 @@ The project uses GitHub Actions for automatic deployment to GitHub Pages:
 ### Data Source
 
 The KEV catalog is fetched from CISA's official JSON endpoint:
+
 ```
 https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
 ```
@@ -149,4 +150,4 @@ If you have questions or suggestions, please open an issue on GitHub.
 
 ---
 
-*Disclaimer: This is an unofficial dashboard and is not affiliated with, endorsed by, or sponsored by CISA. The data is sourced directly from CISA's public feed and presented as-is for educational and informational purposes.*
+_Disclaimer: This is an unofficial dashboard and is not affiliated with, endorsed by, or sponsored by CISA. The data is sourced directly from CISA's public feed and presented as-is for educational and informational purposes._
