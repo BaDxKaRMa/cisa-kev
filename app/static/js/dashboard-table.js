@@ -136,6 +136,7 @@
         const pagination = document.getElementById('main-pagination');
         const viewSelector = document.getElementById('view-selector');
         const viewDesc = document.getElementById('view-desc');
+        const columnSettings = document.querySelector('.column-settings');
         const columnOptionsList = document.getElementById('column-options-list');
         const resetColumnsBtn = document.getElementById('reset-columns');
         const loadedSettings = loadDashboardSettings();
@@ -294,6 +295,14 @@
                     columns: state.columnVisibility,
                     columnOrder: state.columnOrder,
                 });
+            });
+        }
+
+        if (columnSettings) {
+            document.addEventListener('click', function(event) {
+                if (!columnSettings.open) return;
+                if (columnSettings.contains(event.target)) return;
+                columnSettings.open = false;
             });
         }
 

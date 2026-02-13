@@ -305,3 +305,19 @@ test('saved column order is applied on load', async () => {
     .map(h => h.textContent.replace(/[▲▼]/g, '').trim());
   expect(reorderedHeaders[0]).toBe('Vendor');
 });
+
+test('column settings menu closes when clicking outside', async () => {
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('.column-toggle').length > 0);
+
+  const columnSettings = document.querySelector('.column-settings');
+  expect(columnSettings).toBeTruthy();
+
+  columnSettings.open = true;
+  expect(columnSettings.open).toBe(true);
+
+  document.body.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await waitForTick();
+
+  expect(columnSettings.open).toBe(false);
+});
