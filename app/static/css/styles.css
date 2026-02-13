@@ -44,9 +44,9 @@
     --badge-known-bg: #223043;
     --badge-known-text: #d7e6ff;
     --badge-known-border: #4f6e99;
-    --badge-unknown-bg: #2a3342;
-    --badge-unknown-text: #c7d8ff;
-    --badge-unknown-border: #3d5272;
+    --badge-unknown-bg: #2a2f3a;
+    --badge-unknown-text: #d5d9e2;
+    --badge-unknown-border: #545f75;
     --details-bg: #1a1d24;
     --legend-dark-text: #222;
 }
