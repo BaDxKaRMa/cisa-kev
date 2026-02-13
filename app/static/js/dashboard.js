@@ -42,23 +42,25 @@
                         row.classList.add('high-priority');
                     }
 
-                    if (DOM.addCveCell) DOM.addCveCell(row, vulnerability.cveID);
-                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.vulnerabilityName);
-                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.vendorProject);
-                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.product);
+                    if (DOM.addCveCell) DOM.addCveCell(row, vulnerability.cveID, 'cve');
+                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.vulnerabilityName, 'name');
+                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.vendorProject, 'vendor');
+                    if (DOM.addTextCell) DOM.addTextCell(row, vulnerability.product, 'product');
                     if (DOM.addDateCell) {
                         DOM.addDateCell(
                             row,
                             dateAdded,
-                            DATE.describeDateAdded ? DATE.describeDateAdded(dateAdded) : ''
+                            DATE.describeDateAdded ? DATE.describeDateAdded(dateAdded) : '',
+                            'dateAdded'
                         );
                         DOM.addDateCell(
                             row,
                             dueDate,
-                            DATE.describeDueDate ? DATE.describeDueDate(dueDate) : ''
+                            DATE.describeDueDate ? DATE.describeDueDate(dueDate) : '',
+                            'dueDate'
                         );
                     }
-                    if (DOM.addRansomwareCell) DOM.addRansomwareCell(row, ransomwareUse);
+                    if (DOM.addRansomwareCell) DOM.addRansomwareCell(row, ransomwareUse, 'ransomware');
 
                     const detailsRow = DOM.buildDetailRow ? DOM.buildDetailRow(vulnerability, rowId) : null;
 

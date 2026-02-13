@@ -4,16 +4,6 @@
     const DOM = window.KevDashboardDom || {};
 
     const COLUMNS = CONFIG.columns || [];
-    const COL = CONFIG.columnIndex || {};
-    const COL_IDX = {
-        cve: COL.cve ?? 0,
-        name: COL.name ?? 1,
-        vendor: COL.vendor ?? 2,
-        product: COL.product ?? 3,
-        dateAdded: COL.dateAdded ?? 4,
-        dueDate: COL.dueDate ?? 5,
-        ransomware: COL.ransomware ?? 6,
-    };
     const SETTINGS_KEY = CONFIG.settingsKey || 'kevDashboardSettingsV1';
     const DEFAULT_COLUMN_VISIBILITY = CONFIG.defaultColumnVisibility || {
         0: true,
@@ -24,6 +14,7 @@
         5: true,
         6: true,
     };
+    const DEFAULT_COLUMN_ORDER = COLUMNS.map(column => column.key);
 
     function loadDashboardSettings() {
         try {
@@ -43,6 +34,22 @@
         } catch {
             // Ignore localStorage failures.
         }
+    }
+
+    function normalizeColumnOrder(order) {
+        if (!Array.isArray(order)) return [...DEFAULT_COLUMN_ORDER];
+        const expected = new Set(DEFAULT_COLUMN_ORDER);
+        const received = new Set(order);
+        if (order.length !== DEFAULT_COLUMN_ORDER.length) return [...DEFAULT_COLUMN_ORDER];
+        if (received.size !== expected.size) return [...DEFAULT_COLUMN_ORDER];
+        for (const key of received) {
+            if (!expected.has(key)) return [...DEFAULT_COLUMN_ORDER];
+        }
+        return [...order];
+    }
+
+    function getCellByKey(row, key) {
+        return Array.from(row.cells).find(cell => cell.dataset.colKey === key) || null;
     }
 
     function highlightDueDates() {
@@ -135,10 +142,11 @@
 
         const state = {
             currentPage: 1,
-            sortColumn: null,
+            sortKey: null,
             sortDirection: 'asc',
             hasManualSort: false,
             currentVisibleRows: rows,
+            columnOrder: normalizeColumnOrder(loadedSettings.columnOrder),
             columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) },
         };
         let columnCheckboxes = [];
@@ -154,7 +162,6 @@
             perPageSelect.value = loadedSettings.perPage;
         }
         if (viewSelector) {
-            // Always start on Recently Added; this view is the dashboard default.
             viewSelector.value = 'recent';
         }
 
@@ -175,6 +182,66 @@
             columnOptionsList.appendChild(fragment);
         }
         columnCheckboxes = Array.from(document.querySelectorAll('.column-toggle'));
+
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        headers.forEach((header, columnIndex) => {
+            const column = COLUMNS[columnIndex];
+            if (column) {
+                header.dataset.colKey = column.key;
+                header.dataset.sourceIndex = String(column.index);
+            }
+            header.setAttribute('data-original-text', header.textContent);
+            header.setAttribute('data-sortable', 'true');
+            header.style.cursor = 'pointer';
+            header.draggable = true;
+            header.classList.add('draggable-header');
+        });
+
+        let draggingKey = null;
+
+        function clearDragClasses() {
+            headers.forEach(header => {
+                header.classList.remove('drag-over');
+                header.classList.remove('dragging');
+            });
+        }
+
+        function moveColumnBefore(sourceKey, targetKey) {
+            if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+            const order = [...state.columnOrder];
+            const fromIndex = order.indexOf(sourceKey);
+            const targetIndex = order.indexOf(targetKey);
+            if (fromIndex < 0 || targetIndex < 0) return;
+
+            order.splice(fromIndex, 1);
+            const insertIndex = order.indexOf(targetKey);
+            order.splice(insertIndex, 0, sourceKey);
+            state.columnOrder = order;
+            applyColumnOrder(state.columnOrder);
+            saveDashboardSettings({ columnOrder: state.columnOrder });
+        }
+
+        function reorderCellsInRow(row, orderKeys, cellTag) {
+            const cells = Array.from(row.children)
+                .filter(cell => cell.tagName === cellTag.toUpperCase() && cell.dataset.colKey);
+            if (cells.length === 0) return;
+
+            const cellByKey = new Map(cells.map(cell => [cell.dataset.colKey, cell]));
+            orderKeys.forEach(key => {
+                const cell = cellByKey.get(key);
+                if (cell) row.appendChild(cell);
+            });
+        }
+
+        function applyColumnOrder(orderKeys) {
+            const headerRow = table.querySelector('thead tr');
+            if (headerRow) reorderCellsInRow(headerRow, orderKeys, 'th');
+            rows.forEach(row => reorderCellsInRow(row, orderKeys, 'td'));
+            if (DOM.applyColumnVisibility) {
+                DOM.applyColumnVisibility(table, state.columnVisibility);
+            }
+            renderSortIndicators();
+        }
 
         if (searchInput) {
             searchInput.addEventListener('input', function() {
@@ -217,14 +284,16 @@
         if (resetColumnsBtn) {
             resetColumnsBtn.addEventListener('click', function() {
                 state.columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY };
+                state.columnOrder = [...DEFAULT_COLUMN_ORDER];
                 columnCheckboxes.forEach(checkbox => {
                     const index = Number(checkbox.dataset.col);
                     checkbox.checked = state.columnVisibility[index];
                 });
-                if (DOM.applyColumnVisibility) {
-                    DOM.applyColumnVisibility(table, state.columnVisibility);
-                }
-                saveDashboardSettings({ columns: state.columnVisibility });
+                applyColumnOrder(state.columnOrder);
+                saveDashboardSettings({
+                    columns: state.columnVisibility,
+                    columnOrder: state.columnOrder,
+                });
             });
         }
 
@@ -254,35 +323,69 @@
             viewDesc.appendChild(document.createTextNode(description));
         }
 
-        const headers = table.querySelectorAll('thead th');
         function renderSortIndicators() {
-            headers.forEach(h => {
-                h.textContent = h.getAttribute('data-original-text');
+            headers.forEach(header => {
+                header.textContent = header.getAttribute('data-original-text');
             });
-            if (state.sortColumn === null) return;
-            const activeHeader = headers[state.sortColumn];
+            if (!state.sortKey) return;
+
+            const activeHeader = table.querySelector(`thead th[data-col-key="${state.sortKey}"]`);
             if (!activeHeader) return;
             activeHeader.textContent =
                 activeHeader.getAttribute('data-original-text') +
                 (state.sortDirection === 'asc' ? ' ▲' : ' ▼');
         }
 
-        headers.forEach((header, columnIndex) => {
-            header.setAttribute('data-original-text', header.textContent);
-            header.setAttribute('data-sortable', 'true');
-            header.style.cursor = 'pointer';
-
+        headers.forEach(header => {
             header.addEventListener('click', function() {
-                if (state.sortColumn === columnIndex) {
+                const clickedKey = header.dataset.colKey;
+                if (!clickedKey) return;
+
+                if (state.sortKey === clickedKey) {
                     state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
                 } else {
-                    state.sortColumn = columnIndex;
+                    state.sortKey = clickedKey;
                     state.sortDirection = 'asc';
                 }
                 state.hasManualSort = true;
                 renderSortIndicators();
                 state.currentPage = 1;
                 updateTable();
+            });
+
+            header.addEventListener('dragstart', function(event) {
+                draggingKey = header.dataset.colKey || null;
+                if (!draggingKey) return;
+                header.classList.add('dragging');
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', draggingKey);
+                }
+            });
+
+            header.addEventListener('dragover', function(event) {
+                if (!draggingKey) return;
+                event.preventDefault();
+                header.classList.add('drag-over');
+            });
+
+            header.addEventListener('dragleave', function() {
+                header.classList.remove('drag-over');
+            });
+
+            header.addEventListener('drop', function(event) {
+                if (!draggingKey) return;
+                event.preventDefault();
+                header.classList.remove('drag-over');
+
+                const targetKey = header.dataset.colKey || null;
+                const sourceKey = (event.dataTransfer && event.dataTransfer.getData('text/plain')) || draggingKey;
+                moveColumnBefore(sourceKey, targetKey);
+            });
+
+            header.addEventListener('dragend', function() {
+                draggingKey = null;
+                clearDragClasses();
             });
         });
 
@@ -293,30 +396,27 @@
             });
         }
 
+        applyColumnOrder(state.columnOrder);
         applyDefaultSortForView(viewSelector ? viewSelector.value : 'recent');
-
-        if (DOM.applyColumnVisibility) {
-            DOM.applyColumnVisibility(table, state.columnVisibility);
-        }
         updateTable();
 
         function applyDefaultSortForView(viewValue) {
             if (state.hasManualSort) return;
 
             if (viewValue === 'high') {
-                state.sortColumn = COL_IDX.dueDate;
+                state.sortKey = 'dueDate';
                 state.sortDirection = 'asc';
                 renderSortIndicators();
                 return;
             }
             if (viewValue === 'recent') {
-                state.sortColumn = COL_IDX.dateAdded;
+                state.sortKey = 'dateAdded';
                 state.sortDirection = 'desc';
                 renderSortIndicators();
                 return;
             }
 
-            state.sortColumn = null;
+            state.sortKey = null;
             state.sortDirection = 'asc';
             renderSortIndicators();
         }
@@ -351,25 +451,25 @@
                 });
             }
 
-            if (state.sortColumn !== null) {
+            if (state.sortKey) {
                 visibleRows.sort((a, b) => {
-                    if (state.sortColumn === COL_IDX.dateAdded || state.sortColumn === COL_IDX.dueDate) {
-                        const valueA =
-                            state.sortColumn === COL_IDX.dateAdded ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
-                        const valueB =
-                            state.sortColumn === COL_IDX.dateAdded ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
+                    if (state.sortKey === 'dateAdded' || state.sortKey === 'dueDate') {
+                        const valueA = state.sortKey === 'dateAdded' ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
+                        const valueB = state.sortKey === 'dateAdded' ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
                         return state.sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                     }
 
-                    if (state.sortColumn === COL_IDX.ransomware) {
+                    if (state.sortKey === 'ransomware') {
                         const valueA = a.dataset.ransomware || '';
                         const valueB = b.dataset.ransomware || '';
                         return state.sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                     }
 
-                    const cellA = a.cells[state.sortColumn].textContent.trim();
-                    const cellB = b.cells[state.sortColumn].textContent.trim();
-                    return state.sortDirection === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+                    const cellA = getCellByKey(a, state.sortKey);
+                    const cellB = getCellByKey(b, state.sortKey);
+                    const valueA = cellA ? cellA.textContent.trim() : '';
+                    const valueB = cellB ? cellB.textContent.trim() : '';
+                    return state.sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                 });
             }
 
@@ -464,21 +564,22 @@
     }
 
     function exportToCSV(table, rows) {
-        const headers = Array.from(table.querySelectorAll('thead th'))
-            .map(th => `"${th.textContent.replace(/"/g, '""')}"`);
+        const visibleHeaders = Array.from(table.querySelectorAll('thead th'))
+            .filter(th => th.style.display !== 'none');
 
+        const headers = visibleHeaders.map(th => `"${th.textContent.replace(/"/g, '""')}"`);
         let csvContent = headers.join(',') + '\n';
 
         rows.forEach(row => {
-            const rowData = [
-                row.cells[COL_IDX.cve].textContent.trim(),
-                row.cells[COL_IDX.name].textContent.trim(),
-                row.cells[COL_IDX.vendor].textContent.trim(),
-                row.cells[COL_IDX.product].textContent.trim(),
-                row.dataset.dateAdded || '',
-                row.dataset.dueDate || '',
-                row.dataset.ransomware || '',
-            ].map(value => `"${String(value).replace(/"/g, '""')}"`);
+            const rowData = visibleHeaders.map(header => {
+                const key = header.dataset.colKey;
+                if (key === 'dateAdded') return row.dataset.dateAdded || '';
+                if (key === 'dueDate') return row.dataset.dueDate || '';
+                if (key === 'ransomware') return row.dataset.ransomware || '';
+
+                const cell = getCellByKey(row, key);
+                return cell ? cell.textContent.trim() : '';
+            }).map(value => `"${String(value).replace(/"/g, '""')}"`);
 
             csvContent += rowData.join(',') + '\n';
         });

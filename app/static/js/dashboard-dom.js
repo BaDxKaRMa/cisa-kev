@@ -3,10 +3,19 @@
     const TOAST = window.KevDashboardToast || {};
 
     const COLUMNS = CONFIG.columns || [];
-    const COL = CONFIG.columnIndex || {};
-    const COL_IDX = {
-        cve: COL.cve ?? 0,
-    };
+    const COLUMN_BY_KEY = COLUMNS.reduce((acc, column) => {
+        acc[column.key] = column;
+        return acc;
+    }, {});
+
+    function setCellMetadata(cell, key) {
+        if (!key) return;
+        cell.dataset.colKey = key;
+        const column = COLUMN_BY_KEY[key];
+        if (column) {
+            cell.dataset.sourceIndex = String(column.index);
+        }
+    }
 
     function renderTableError(message) {
         const tbody = document.getElementById('main-table-body');
@@ -22,14 +31,17 @@
         if (TOAST.setStatusMessage) TOAST.setStatusMessage(message);
     }
 
-    function addTextCell(row, value) {
+    function addTextCell(row, value, key) {
         const cell = document.createElement('td');
+        setCellMetadata(cell, key);
         cell.textContent = value ?? '';
         row.appendChild(cell);
     }
 
-    function addCveCell(row, value) {
+    function addCveCell(row, value, key = 'cve') {
         const cell = document.createElement('td');
+        setCellMetadata(cell, key);
+
         const cveText = value || '';
         const trigger = document.createElement('span');
         trigger.className = 'cve-copy';
@@ -67,8 +79,10 @@
         row.appendChild(cell);
     }
 
-    function addDateCell(row, value, subtext) {
+    function addDateCell(row, value, subtext, key) {
         const cell = document.createElement('td');
+        setCellMetadata(cell, key);
+
         const main = document.createElement('div');
         main.className = 'cell-main';
         main.textContent = value ?? '';
@@ -84,9 +98,11 @@
         row.appendChild(cell);
     }
 
-    function addRansomwareCell(row, value) {
+    function addRansomwareCell(row, value, key = 'ransomware') {
         const cell = document.createElement('td');
-        cell.className = 'ransomware-cell';
+        setCellMetadata(cell, key);
+        cell.classList.add('ransomware-cell');
+
         const badge = document.createElement('span');
         const normalized = value || 'Unknown';
 
@@ -240,7 +256,7 @@
 
         allRows.forEach(row => {
             if (row.classList.contains('details-row')) {
-                const detailsCell = row.cells[COL_IDX.cve] || row.cells[0];
+                const detailsCell = row.cells[0];
                 if (detailsCell) detailsCell.colSpan = visibleCount;
                 return;
             }
@@ -251,14 +267,12 @@
                     noResultsCell.colSpan = visibleCount;
                     noResultsCell.style.display = '';
                 }
-                Array.from(row.cells).slice(1).forEach(cell => {
-                    cell.style.display = 'none';
-                });
                 return;
             }
 
-            Array.from(row.cells).forEach((cell, idx) => {
-                cell.style.display = visibility[idx] === false ? 'none' : '';
+            Array.from(row.cells).forEach(cell => {
+                const sourceIndex = Number(cell.dataset.sourceIndex);
+                cell.style.display = visibility[sourceIndex] === false ? 'none' : '';
             });
         });
     }

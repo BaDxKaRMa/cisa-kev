@@ -292,3 +292,16 @@ test('shows no-results row when filters return nothing', async () => {
   expect(emptyStateRow.style.display).toBe('');
   expect(emptyStateRow.textContent).toContain('No vulnerabilities match');
 });
+
+test('saved column order is applied on load', async () => {
+  window.localStorage.setItem(
+    'kevDashboardSettingsV1',
+    JSON.stringify({ columnOrder: ['vendor', 'cve', 'name', 'product', 'dateAdded', 'dueDate', 'ransomware'] }),
+  );
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  const reorderedHeaders = Array.from(document.querySelectorAll('#main-table thead th'))
+    .map(h => h.textContent.replace(/[▲▼]/g, '').trim());
+  expect(reorderedHeaders[0]).toBe('Vendor');
+});
