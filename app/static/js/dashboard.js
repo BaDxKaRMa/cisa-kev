@@ -107,11 +107,18 @@ function addCveCell(row, value) {
         if (!cveText) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(cveText)
-                .then(() => setStatusMessage(`Copied ${cveText}`))
-                .catch(() => setStatusMessage('Unable to copy CVE ID'));
+                .then(() => {
+                    setStatusMessage(`Copied ${cveText}`);
+                    showCopyToast(`Copied ${cveText}`);
+                })
+                .catch(() => {
+                    setStatusMessage('Unable to copy CVE ID');
+                    showCopyToast('Unable to copy CVE ID');
+                });
             return;
         }
         setStatusMessage('Clipboard not available');
+        showCopyToast('Clipboard not available');
     }
 
     trigger.addEventListener('click', copyCve);
@@ -165,6 +172,24 @@ function setStatusMessage(message) {
     const status = document.getElementById('main-status');
     if (!status) return;
     status.textContent = message;
+}
+
+let copyToastTimer = null;
+function showCopyToast(message) {
+    let toast = document.getElementById('copy-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'copy-toast';
+        toast.className = 'copy-toast';
+        document.body.appendChild(toast);
+    }
+
+    toast.textContent = message;
+    toast.classList.add('visible');
+    if (copyToastTimer) window.clearTimeout(copyToastTimer);
+    copyToastTimer = window.setTimeout(function() {
+        toast.classList.remove('visible');
+    }, 1600);
 }
 
 function uniqueLinks(cveId, notes) {
