@@ -411,11 +411,13 @@ function initMainTableControls() {
     const resetColumnsBtn = document.getElementById('reset-columns');
     const loadedSettings = loadDashboardSettings();
 
-    let currentPage = 1;
-    let sortColumn = null;
-    let sortDirection = 'asc';
-    let currentVisibleRows = rows;
-    let columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) };
+    const state = {
+        currentPage: 1,
+        sortColumn: null,
+        sortDirection: 'asc',
+        currentVisibleRows: rows,
+        columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) },
+    };
     let columnCheckboxes = [];
 
     if (searchInput && typeof loadedSettings.search === 'string') {
@@ -444,7 +446,7 @@ function initMainTableControls() {
             input.className = 'column-toggle';
             input.type = 'checkbox';
             input.dataset.col = String(column.index);
-            input.checked = columnVisibility[column.index] !== false;
+            input.checked = state.columnVisibility[column.index] !== false;
             label.appendChild(input);
             label.appendChild(document.createTextNode(` ${column.label}`));
             fragment.appendChild(label);
@@ -456,14 +458,14 @@ function initMainTableControls() {
 
     if (searchInput) {
         searchInput.addEventListener('input', function() {
-            currentPage = 1;
+            state.currentPage = 1;
             saveDashboardSettings({ search: searchInput.value });
             updateTable();
         });
     }
     if (perPageSelect) {
         perPageSelect.addEventListener('change', function() {
-            currentPage = 1;
+            state.currentPage = 1;
             saveDashboardSettings({ perPage: perPageSelect.value });
             updateTable();
         });
@@ -471,12 +473,12 @@ function initMainTableControls() {
     if (viewSelector) {
         viewSelector.addEventListener('change', function() {
             saveDashboardSettings({ view: viewSelector.value });
-            if (viewSelector.value === 'high' && sortColumn === null) {
-                sortColumn = COL_IDX.dueDate;
-                sortDirection = 'asc';
+            if (viewSelector.value === 'high' && state.sortColumn === null) {
+                state.sortColumn = COL_IDX.dueDate;
+                state.sortDirection = 'asc';
                 renderSortIndicators();
             }
-            currentPage = 1;
+            state.currentPage = 1;
             updateTable();
             updateViewDesc();
         });
@@ -485,24 +487,24 @@ function initMainTableControls() {
     if (columnCheckboxes.length > 0) {
         columnCheckboxes.forEach(checkbox => {
             const index = Number(checkbox.dataset.col);
-            checkbox.checked = columnVisibility[index] !== false;
+            checkbox.checked = state.columnVisibility[index] !== false;
             checkbox.addEventListener('change', function() {
-                columnVisibility[index] = checkbox.checked;
-                applyColumnVisibility(table, columnVisibility);
-                saveDashboardSettings({ columns: columnVisibility });
+                state.columnVisibility[index] = checkbox.checked;
+                applyColumnVisibility(table, state.columnVisibility);
+                saveDashboardSettings({ columns: state.columnVisibility });
             });
         });
     }
 
     if (resetColumnsBtn) {
         resetColumnsBtn.addEventListener('click', function() {
-            columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY };
+            state.columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY };
             columnCheckboxes.forEach(checkbox => {
                 const index = Number(checkbox.dataset.col);
-                checkbox.checked = columnVisibility[index];
+                checkbox.checked = state.columnVisibility[index];
             });
-            applyColumnVisibility(table, columnVisibility);
-            saveDashboardSettings({ columns: columnVisibility });
+            applyColumnVisibility(table, state.columnVisibility);
+            saveDashboardSettings({ columns: state.columnVisibility });
         });
     }
 
@@ -537,12 +539,12 @@ function initMainTableControls() {
         headers.forEach(h => {
             h.textContent = h.getAttribute('data-original-text');
         });
-        if (sortColumn === null) return;
-        const activeHeader = headers[sortColumn];
+        if (state.sortColumn === null) return;
+        const activeHeader = headers[state.sortColumn];
         if (!activeHeader) return;
         activeHeader.textContent =
             activeHeader.getAttribute('data-original-text') +
-            (sortDirection === 'asc' ? ' ▲' : ' ▼');
+            (state.sortDirection === 'asc' ? ' ▲' : ' ▼');
     }
 
     headers.forEach((header, columnIndex) => {
@@ -551,14 +553,14 @@ function initMainTableControls() {
         header.style.cursor = 'pointer';
 
         header.addEventListener('click', function() {
-            if (sortColumn === columnIndex) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            if (state.sortColumn === columnIndex) {
+                state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
             } else {
-                sortColumn = columnIndex;
-                sortDirection = 'asc';
+                state.sortColumn = columnIndex;
+                state.sortDirection = 'asc';
             }
             renderSortIndicators();
-            currentPage = 1;
+            state.currentPage = 1;
             updateTable();
         });
     });
@@ -566,17 +568,17 @@ function initMainTableControls() {
     const exportBtn = document.getElementById('main-export-filtered');
     if (exportBtn) {
         exportBtn.addEventListener('click', function() {
-            exportToCSV('main', table, currentVisibleRows);
+            exportToCSV('main', table, state.currentVisibleRows);
         });
     }
 
     if (viewSelector && viewSelector.value === 'high') {
-        sortColumn = COL_IDX.dueDate;
-        sortDirection = 'asc';
+        state.sortColumn = COL_IDX.dueDate;
+        state.sortDirection = 'asc';
         renderSortIndicators();
     }
 
-    applyColumnVisibility(table, columnVisibility);
+    applyColumnVisibility(table, state.columnVisibility);
     updateTable();
 
     function updateTable() {
@@ -609,34 +611,34 @@ function initMainTableControls() {
             });
         }
 
-        if (sortColumn !== null) {
+        if (state.sortColumn !== null) {
             visibleRows.sort((a, b) => {
-                if (sortColumn === COL_IDX.dateAdded || sortColumn === COL_IDX.dueDate) {
+                if (state.sortColumn === COL_IDX.dateAdded || state.sortColumn === COL_IDX.dueDate) {
                     const valueA =
-                        sortColumn === COL_IDX.dateAdded ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
+                        state.sortColumn === COL_IDX.dateAdded ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
                     const valueB =
-                        sortColumn === COL_IDX.dateAdded ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
-                    return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+                        state.sortColumn === COL_IDX.dateAdded ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
+                    return state.sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                 }
 
-                if (sortColumn === COL_IDX.ransomware) {
+                if (state.sortColumn === COL_IDX.ransomware) {
                     const valueA = a.dataset.ransomware || '';
                     const valueB = b.dataset.ransomware || '';
-                    return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+                    return state.sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                 }
 
-                const cellA = a.cells[sortColumn].textContent.trim();
-                const cellB = b.cells[sortColumn].textContent.trim();
-                return sortDirection === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+                const cellA = a.cells[state.sortColumn].textContent.trim();
+                const cellB = b.cells[state.sortColumn].textContent.trim();
+                return state.sortDirection === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
             });
         }
 
-        currentVisibleRows = visibleRows;
+        state.currentVisibleRows = visibleRows;
 
         const totalVisible = visibleRows.length;
         const pageCount = Math.ceil(totalVisible / perPage);
-        if (currentPage > pageCount) {
-            currentPage = Math.max(1, pageCount);
+        if (state.currentPage > pageCount) {
+            state.currentPage = Math.max(1, pageCount);
         }
 
         rows.forEach(row => {
@@ -649,7 +651,7 @@ function initMainTableControls() {
         });
 
         visibleRows.forEach((row, idx) => {
-            const inPage = idx >= (currentPage - 1) * perPage && idx < currentPage * perPage;
+            const inPage = idx >= (state.currentPage - 1) * perPage && idx < state.currentPage * perPage;
             if (!inPage) return;
 
             row.style.display = '';
@@ -673,8 +675,8 @@ function initMainTableControls() {
 
         if (pageCount > maxButtons) {
             const pages = [1];
-            const start = Math.max(2, currentPage - 2);
-            const end = Math.min(pageCount - 1, currentPage + 2);
+            const start = Math.max(2, state.currentPage - 2);
+            const end = Math.min(pageCount - 1, state.currentPage + 2);
 
             if (start > 2) pages.push('...');
             for (let i = start; i <= end; i++) pages.push(i);
@@ -690,9 +692,9 @@ function initMainTableControls() {
                 } else {
                     const button = document.createElement('button');
                     button.textContent = p;
-                    if (p === currentPage) button.style.fontWeight = 'bold';
+                    if (p === state.currentPage) button.style.fontWeight = 'bold';
                     button.addEventListener('click', function() {
-                        currentPage = p;
+                        state.currentPage = p;
                         updateTable();
                     });
                     fragment.appendChild(button);
@@ -702,9 +704,9 @@ function initMainTableControls() {
             for (let i = 1; i <= pageCount; i++) {
                 const button = document.createElement('button');
                 button.textContent = i;
-                if (i === currentPage) button.style.fontWeight = 'bold';
+                if (i === state.currentPage) button.style.fontWeight = 'bold';
                 button.addEventListener('click', function() {
-                    currentPage = i;
+                    state.currentPage = i;
                     updateTable();
                 });
                 fragment.appendChild(button);
