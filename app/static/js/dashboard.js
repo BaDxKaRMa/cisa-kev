@@ -237,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.tabIndex = 0;
                 row.setAttribute('role', 'button');
                 row.setAttribute('aria-expanded', 'false');
+                row.setAttribute('aria-label', `Toggle details for ${vulnerability.cveID || 'vulnerability'}`);
 
                 const rowId = String(index);
                 const dateAdded = vulnerability.dateAdded || '';
