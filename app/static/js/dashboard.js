@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
           addTextCell(row, ransomwareUse);
           tbody.appendChild(row);
         });
-        setStatusMessage(`Loaded ${vulnerabilities.length} vulnerabilities.`);
         // Now initialize controls and highlighting
         initMainTableControls();
         highlightDueDates();
