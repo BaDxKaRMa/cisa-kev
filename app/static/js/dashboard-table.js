@@ -137,6 +137,7 @@
             currentPage: 1,
             sortColumn: null,
             sortDirection: 'asc',
+            hasManualSort: false,
             currentVisibleRows: rows,
             columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) },
         };
@@ -152,12 +153,9 @@
         ) {
             perPageSelect.value = loadedSettings.perPage;
         }
-        if (
-            viewSelector &&
-            loadedSettings.view &&
-            viewSelector.querySelector(`option[value="${loadedSettings.view}"]`)
-        ) {
-            viewSelector.value = loadedSettings.view;
+        if (viewSelector) {
+            // Always start on Recently Added; this view is the dashboard default.
+            viewSelector.value = 'recent';
         }
 
         if (columnOptionsList) {
@@ -195,11 +193,7 @@
         if (viewSelector) {
             viewSelector.addEventListener('change', function() {
                 saveDashboardSettings({ view: viewSelector.value });
-                if (viewSelector.value === 'high' && state.sortColumn === null) {
-                    state.sortColumn = COL_IDX.dueDate;
-                    state.sortDirection = 'asc';
-                    renderSortIndicators();
-                }
+                applyDefaultSortForView(viewSelector.value);
                 state.currentPage = 1;
                 updateTable();
                 updateViewDesc();
@@ -285,6 +279,7 @@
                     state.sortColumn = columnIndex;
                     state.sortDirection = 'asc';
                 }
+                state.hasManualSort = true;
                 renderSortIndicators();
                 state.currentPage = 1;
                 updateTable();
@@ -298,16 +293,33 @@
             });
         }
 
-        if (viewSelector && viewSelector.value === 'high') {
-            state.sortColumn = COL_IDX.dueDate;
-            state.sortDirection = 'asc';
-            renderSortIndicators();
-        }
+        applyDefaultSortForView(viewSelector ? viewSelector.value : 'recent');
 
         if (DOM.applyColumnVisibility) {
             DOM.applyColumnVisibility(table, state.columnVisibility);
         }
         updateTable();
+
+        function applyDefaultSortForView(viewValue) {
+            if (state.hasManualSort) return;
+
+            if (viewValue === 'high') {
+                state.sortColumn = COL_IDX.dueDate;
+                state.sortDirection = 'asc';
+                renderSortIndicators();
+                return;
+            }
+            if (viewValue === 'recent') {
+                state.sortColumn = COL_IDX.dateAdded;
+                state.sortDirection = 'desc';
+                renderSortIndicators();
+                return;
+            }
+
+            state.sortColumn = null;
+            state.sortDirection = 'asc';
+            renderSortIndicators();
+        }
 
         function updateTable() {
             const filterText = searchInput ? searchInput.value.toLowerCase() : '';

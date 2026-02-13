@@ -157,13 +157,45 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('switching to high priority sorts by due date ascending', async () => {
+test('default load uses recently added view sorted by date added descending', async () => {
   window.localStorage.setItem(
     'kevDashboardSettingsV1',
     JSON.stringify({ view: 'high', perPage: '1' }),
   );
   dispatchDomReady();
   await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  const visibleRowsPage1 = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .filter(row => row.style.display !== 'none');
+
+  expect(visibleRowsPage1.length).toBe(1);
+  expect(document.getElementById('view-selector').value).toBe('recent');
+  expect(visibleRowsPage1[0].dataset.dateAdded).toBe('2026-02-03');
+
+  const pageTwoButton = Array.from(document.querySelectorAll('#main-pagination button'))
+    .find(button => button.textContent.trim() === '2');
+  expect(pageTwoButton).toBeTruthy();
+  pageTwoButton.click();
+  await waitForTick();
+
+  const visibleRowsPage2 = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .filter(row => row.style.display !== 'none');
+  expect(visibleRowsPage2.length).toBe(1);
+  expect(visibleRowsPage2[0].dataset.dateAdded).toBe('2026-02-02');
+});
+
+test('switching to high priority sorts by due date ascending', async () => {
+  window.localStorage.setItem(
+    'kevDashboardSettingsV1',
+    JSON.stringify({ perPage: '1' }),
+  );
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  const viewSelector = document.getElementById('view-selector');
+  viewSelector.value = 'high';
+  viewSelector.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await waitForTick();
 
   const visibleRowsPage1 = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
     .filter(row => row.style.display !== 'none');
@@ -204,15 +236,18 @@ test('column toggle can be reset to defaults', async () => {
 
 test('clicking CVE copies value and shows toast', async () => {
   dispatchDomReady();
-  await waitForCondition(() => document.querySelector('.cve-copy') !== null);
+  await waitForCondition(() => Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .some(row => row.style.display !== 'none'));
 
-  const cve = document.querySelector('.cve-copy');
+  const visibleFirstRow = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .find(row => row.style.display !== 'none');
+  const cve = visibleFirstRow.querySelector('.cve-copy');
   expect(cve).toBeTruthy();
 
   cve.click();
   await waitForTick();
 
-  expect(navigator.clipboard.writeText).toHaveBeenCalledWith('CVE-2026-0003');
+  expect(navigator.clipboard.writeText).toHaveBeenCalledWith('CVE-2026-0002');
   const toast = document.getElementById('copy-toast');
   expect(toast).toBeTruthy();
   expect(toast.classList.contains('visible')).toBe(true);
