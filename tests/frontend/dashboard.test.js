@@ -5,6 +5,8 @@ const SCRIPT_FILES = [
   'app/static/js/dashboard-config.js',
   'app/static/js/dashboard-date.js',
   'app/static/js/dashboard-toast.js',
+  'app/static/js/dashboard-dom.js',
+  'app/static/js/dashboard-table.js',
   'app/static/js/dashboard.js',
 ];
 
@@ -235,4 +237,23 @@ test('view filters interact with pagination controls', async () => {
 
   expect(visibleRows.length).toBe(2);
   expect(visibleRows.every(r => r.dataset.ransomware === 'Known')).toBe(true);
+});
+
+test('shows no-results row when filters return nothing', async () => {
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  const searchInput = document.getElementById('main-search');
+  searchInput.value = 'no-match-value';
+  searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+  await waitForTick();
+
+  const visibleRows = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .filter(row => row.style.display !== 'none');
+  expect(visibleRows.length).toBe(0);
+
+  const emptyStateRow = document.querySelector('#main-table-body tr.no-results-row');
+  expect(emptyStateRow).toBeTruthy();
+  expect(emptyStateRow.style.display).toBe('');
+  expect(emptyStateRow.textContent).toContain('No vulnerabilities match');
 });

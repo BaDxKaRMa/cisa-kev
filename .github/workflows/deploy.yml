@@ -26,6 +26,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
       - name: Install uv
         run: |
           curl -Ls https://astral.sh/uv/install.sh | sh
@@ -68,6 +73,8 @@ jobs:
           node --check app/static/js/dashboard-config.js
           node --check app/static/js/dashboard-date.js
           node --check app/static/js/dashboard-toast.js
+          node --check app/static/js/dashboard-dom.js
+          node --check app/static/js/dashboard-table.js
           node --check app/static/js/dashboard.js
       - name: Run unit tests
         run: uv run python -m unittest discover -s tests -v
@@ -79,6 +86,32 @@ jobs:
         run: |
           uv run python app/generate_static.py
           touch site/.nojekyll
+      - name: Smoke test generated site
+        run: |
+          test -f site/index.html
+          test -f site/known_exploited_vulnerabilities.json
+          test -f site/static/js/dashboard-config.js
+          test -f site/static/js/dashboard-date.js
+          test -f site/static/js/dashboard-toast.js
+          test -f site/static/js/dashboard-dom.js
+          test -f site/static/js/dashboard-table.js
+          test -f site/static/js/dashboard.js
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          html = Path("site/index.html").read_text(encoding="utf-8")
+          required_tokens = [
+              'id="main-table"',
+              'id="view-selector"',
+              'id="main-search"',
+              './static/js/dashboard-dom.js',
+              './static/js/dashboard-table.js',
+          ]
+          missing = [token for token in required_tokens if token not in html]
+          if missing:
+              raise SystemExit(f"Smoke test failed: missing tokens {missing}")
+          print("Static smoke test passed")
+          PY
       - name: Generate KEV update summary
         run: |
           uv run python - <<'PY'
