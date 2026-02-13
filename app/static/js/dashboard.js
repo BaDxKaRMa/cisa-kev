@@ -211,9 +211,27 @@ function buildDetailRow(vulnerability, rowId) {
 
 function toggleDetailRow(row, detailsRow) {
     const expanded = row.getAttribute('aria-expanded') === 'true';
-    row.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-    row.classList.toggle('expanded', !expanded);
-    detailsRow.style.display = expanded ? 'none' : '';
+    const transitionMs = 170;
+
+    if (expanded) {
+        row.setAttribute('aria-expanded', 'false');
+        row.classList.remove('expanded');
+        detailsRow.classList.remove('details-visible');
+        window.setTimeout(function() {
+            if (row.getAttribute('aria-expanded') === 'false') {
+                detailsRow.style.display = 'none';
+            }
+        }, transitionMs);
+        return;
+    }
+
+    row.setAttribute('aria-expanded', 'true');
+    row.classList.add('expanded');
+    detailsRow.style.display = '';
+    // Ensure transition triggers on first open.
+    window.requestAnimationFrame(function() {
+        detailsRow.classList.add('details-visible');
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -481,6 +499,7 @@ function initMainTableControls() {
             const detailsRow = row.nextElementSibling;
             if (detailsRow && detailsRow.classList.contains('details-row')) {
                 detailsRow.style.display = 'none';
+                detailsRow.classList.remove('details-visible');
             }
         });
 
@@ -492,6 +511,7 @@ function initMainTableControls() {
             const detailsRow = row.nextElementSibling;
             if (detailsRow && detailsRow.classList.contains('details-row') && row.getAttribute('aria-expanded') === 'true') {
                 detailsRow.style.display = '';
+                detailsRow.classList.add('details-visible');
             }
         });
 
