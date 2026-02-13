@@ -1,30 +1,22 @@
 // CISA KEV Dashboard JavaScript
 
-function formatLocalDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
+const CONFIG = window.KevDashboardConfig || {};
+const DATE = window.KevDashboardDate || {};
+const TOAST = window.KevDashboardToast || {};
 
-function parseIsoDate(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day);
-}
-
-function startOfToday() {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function dayDiff(fromDate, toDate) {
-    const msPerDay = 24 * 60 * 60 * 1000;
-    return Math.round((toDate - fromDate) / msPerDay);
-}
-
-const DASHBOARD_SETTINGS_KEY = 'kevDashboardSettingsV1';
-const DEFAULT_COLUMN_VISIBILITY = {
+const COLUMNS = CONFIG.columns || [];
+const COL = CONFIG.columnIndex || {};
+const COL_IDX = {
+    cve: COL.cve ?? 0,
+    name: COL.name ?? 1,
+    vendor: COL.vendor ?? 2,
+    product: COL.product ?? 3,
+    dateAdded: COL.dateAdded ?? 4,
+    dueDate: COL.dueDate ?? 5,
+    ransomware: COL.ransomware ?? 6,
+};
+const SETTINGS_KEY = CONFIG.settingsKey || 'kevDashboardSettingsV1';
+const DEFAULT_COLUMN_VISIBILITY = CONFIG.defaultColumnVisibility || {
     0: true,
     1: true,
     2: true,
@@ -36,7 +28,7 @@ const DEFAULT_COLUMN_VISIBILITY = {
 
 function loadDashboardSettings() {
     try {
-        const raw = window.localStorage.getItem(DASHBOARD_SETTINGS_KEY);
+        const raw = window.localStorage.getItem(SETTINGS_KEY);
         if (!raw) return {};
         return JSON.parse(raw) || {};
     } catch {
@@ -48,29 +40,10 @@ function saveDashboardSettings(partial) {
     try {
         const current = loadDashboardSettings();
         const next = { ...current, ...partial };
-        window.localStorage.setItem(DASHBOARD_SETTINGS_KEY, JSON.stringify(next));
+        window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch {
         // Ignore localStorage failures.
     }
-}
-
-function describeDueDate(dueDateValue) {
-    const dueDate = parseIsoDate(dueDateValue);
-    if (!dueDate) return '';
-
-    const deltaDays = dayDiff(startOfToday(), dueDate);
-    if (deltaDays < 0) return `past due ${Math.abs(deltaDays)}d`;
-    if (deltaDays === 0) return 'due today';
-    return `in ${deltaDays}d`;
-}
-
-function describeDateAdded(dateAddedValue) {
-    const dateAdded = parseIsoDate(dateAddedValue);
-    if (!dateAdded) return '';
-
-    const deltaDays = dayDiff(dateAdded, startOfToday());
-    if (deltaDays < 0) return `adds in ${Math.abs(deltaDays)}d`;
-    return `added ${deltaDays}d ago`;
 }
 
 function renderTableError(message) {
@@ -80,11 +53,11 @@ function renderTableError(message) {
     tbody.innerHTML = '';
     const row = document.createElement('tr');
     const cell = document.createElement('td');
-    cell.colSpan = 7;
+    cell.colSpan = COLUMNS.length || 7;
     cell.textContent = message;
     row.appendChild(cell);
     tbody.appendChild(row);
-    setStatusMessage(message);
+    if (TOAST.setStatusMessage) TOAST.setStatusMessage(message);
 }
 
 function addTextCell(row, value) {
@@ -108,17 +81,17 @@ function addCveCell(row, value) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(cveText)
                 .then(() => {
-                    setStatusMessage(`Copied ${cveText}`);
-                    showCopyToast(`Copied ${cveText}`, 'success');
+                    if (TOAST.setStatusMessage) TOAST.setStatusMessage(`Copied ${cveText}`);
+                    if (TOAST.showCopyToast) TOAST.showCopyToast(`Copied ${cveText}`, 'success');
                 })
                 .catch(() => {
-                    setStatusMessage('Unable to copy CVE ID');
-                    showCopyToast('Unable to copy CVE ID', 'error');
+                    if (TOAST.setStatusMessage) TOAST.setStatusMessage('Unable to copy CVE ID');
+                    if (TOAST.showCopyToast) TOAST.showCopyToast('Unable to copy CVE ID', 'error');
                 });
             return;
         }
-        setStatusMessage('Clipboard not available');
-        showCopyToast('Clipboard not available', 'error');
+        if (TOAST.setStatusMessage) TOAST.setStatusMessage('Clipboard not available');
+        if (TOAST.showCopyToast) TOAST.showCopyToast('Clipboard not available', 'error');
     }
 
     trigger.addEventListener('click', copyCve);
@@ -168,54 +141,6 @@ function addRansomwareCell(row, value) {
     row.appendChild(cell);
 }
 
-function setStatusMessage(message) {
-    const status = document.getElementById('main-status');
-    if (!status) return;
-    status.textContent = message;
-}
-
-let copyToastTimer = null;
-function showCopyToast(message, variant = 'info') {
-    let toast = document.getElementById('copy-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'copy-toast';
-        toast.className = 'copy-toast';
-        toast.innerHTML = `
-            <span class="copy-toast-icon" aria-hidden="true"></span>
-            <span class="copy-toast-text"></span>
-            <span class="copy-toast-progress"></span>
-        `;
-        document.body.appendChild(toast);
-    }
-
-    const icon = toast.querySelector('.copy-toast-icon');
-    const text = toast.querySelector('.copy-toast-text');
-    const progress = toast.querySelector('.copy-toast-progress');
-
-    if (text) text.textContent = message;
-    toast.classList.remove('copy-toast-success', 'copy-toast-error', 'copy-toast-info');
-    toast.classList.add(`copy-toast-${variant}`);
-
-    if (icon) {
-        icon.textContent =
-            variant === 'success' ? '✓' :
-            variant === 'error' ? '!' : 'i';
-    }
-
-    if (progress) {
-        progress.classList.remove('animating');
-        void progress.offsetWidth;
-        progress.classList.add('animating');
-    }
-
-    toast.classList.add('visible');
-    if (copyToastTimer) window.clearTimeout(copyToastTimer);
-    copyToastTimer = window.setTimeout(function() {
-        toast.classList.remove('visible');
-    }, 1600);
-}
-
 function uniqueLinks(cveId, notes) {
     const links = [];
     const seen = new Set();
@@ -253,7 +178,7 @@ function buildDetailRow(vulnerability, rowId) {
     detailsRow.style.display = 'none';
 
     const cell = document.createElement('td');
-    cell.colSpan = 7;
+    cell.colSpan = COLUMNS.length || 7;
 
     const content = document.createElement('div');
     content.className = 'details-content';
@@ -354,7 +279,7 @@ function applyColumnVisibility(table, visibility) {
 
     allRows.forEach(row => {
         if (row.classList.contains('details-row')) {
-            const detailsCell = row.cells[0];
+            const detailsCell = row.cells[COL_IDX.cve] || row.cells[0];
             if (detailsCell) detailsCell.colSpan = visibleCount;
             return;
         }
@@ -406,8 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 addTextCell(row, vulnerability.vulnerabilityName);
                 addTextCell(row, vulnerability.vendorProject);
                 addTextCell(row, vulnerability.product);
-                addDateCell(row, dateAdded, describeDateAdded(dateAdded));
-                addDateCell(row, dueDate, describeDueDate(dueDate));
+                addDateCell(row, dateAdded, DATE.describeDateAdded ? DATE.describeDateAdded(dateAdded) : '');
+                addDateCell(row, dueDate, DATE.describeDueDate ? DATE.describeDueDate(dueDate) : '');
                 addRansomwareCell(row, ransomwareUse);
 
                 const detailsRow = buildDetailRow(vulnerability, rowId);
@@ -443,9 +368,9 @@ function highlightDueDates() {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    const todayStr = formatLocalDate(today);
-    const twoWeeksStr = formatLocalDate(twoWeeksFromNow);
-    const thirtyDaysAgoStr = formatLocalDate(thirtyDaysAgo);
+    const todayStr = DATE.formatLocalDate ? DATE.formatLocalDate(today) : '';
+    const twoWeeksStr = DATE.formatLocalDate ? DATE.formatLocalDate(twoWeeksFromNow) : '';
+    const thirtyDaysAgoStr = DATE.formatLocalDate ? DATE.formatLocalDate(thirtyDaysAgo) : '';
 
     const table = document.getElementById('main-table');
     if (!table) return;
@@ -482,7 +407,7 @@ function initMainTableControls() {
     const pagination = document.getElementById('main-pagination');
     const viewSelector = document.getElementById('view-selector');
     const viewDesc = document.getElementById('view-desc');
-    const columnCheckboxes = Array.from(document.querySelectorAll('.column-toggle'));
+    const columnOptionsList = document.getElementById('column-options-list');
     const resetColumnsBtn = document.getElementById('reset-columns');
     const loadedSettings = loadDashboardSettings();
 
@@ -491,6 +416,7 @@ function initMainTableControls() {
     let sortDirection = 'asc';
     let currentVisibleRows = rows;
     let columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) };
+    let columnCheckboxes = [];
 
     if (searchInput && typeof loadedSettings.search === 'string') {
         searchInput.value = loadedSettings.search;
@@ -510,6 +436,24 @@ function initMainTableControls() {
         viewSelector.value = loadedSettings.view;
     }
 
+    if (columnOptionsList) {
+        const fragment = document.createDocumentFragment();
+        COLUMNS.forEach(column => {
+            const label = document.createElement('label');
+            const input = document.createElement('input');
+            input.className = 'column-toggle';
+            input.type = 'checkbox';
+            input.dataset.col = String(column.index);
+            input.checked = columnVisibility[column.index] !== false;
+            label.appendChild(input);
+            label.appendChild(document.createTextNode(` ${column.label}`));
+            fragment.appendChild(label);
+        });
+        columnOptionsList.innerHTML = '';
+        columnOptionsList.appendChild(fragment);
+    }
+    columnCheckboxes = Array.from(document.querySelectorAll('.column-toggle'));
+
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             currentPage = 1;
@@ -528,7 +472,7 @@ function initMainTableControls() {
         viewSelector.addEventListener('change', function() {
             saveDashboardSettings({ view: viewSelector.value });
             if (viewSelector.value === 'high' && sortColumn === null) {
-                sortColumn = 5;
+                sortColumn = COL_IDX.dueDate;
                 sortDirection = 'asc';
                 renderSortIndicators();
             }
@@ -627,7 +571,7 @@ function initMainTableControls() {
     }
 
     if (viewSelector && viewSelector.value === 'high') {
-        sortColumn = 5;
+        sortColumn = COL_IDX.dueDate;
         sortDirection = 'asc';
         renderSortIndicators();
     }
@@ -643,7 +587,7 @@ function initMainTableControls() {
         const today = new Date();
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
-        const thirtyDaysAgoStr = formatLocalDate(thirtyDaysAgo);
+        const thirtyDaysAgoStr = DATE.formatLocalDate ? DATE.formatLocalDate(thirtyDaysAgo) : '';
 
         let visibleRows = rows.filter(row => {
             const dateAdded = row.dataset.dateAdded || '';
@@ -667,13 +611,15 @@ function initMainTableControls() {
 
         if (sortColumn !== null) {
             visibleRows.sort((a, b) => {
-                if (sortColumn === 4 || sortColumn === 5) {
-                    const valueA = sortColumn === 4 ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
-                    const valueB = sortColumn === 4 ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
+                if (sortColumn === COL_IDX.dateAdded || sortColumn === COL_IDX.dueDate) {
+                    const valueA =
+                        sortColumn === COL_IDX.dateAdded ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
+                    const valueB =
+                        sortColumn === COL_IDX.dateAdded ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
                     return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
                 }
 
-                if (sortColumn === 6) {
+                if (sortColumn === COL_IDX.ransomware) {
                     const valueA = a.dataset.ransomware || '';
                     const valueB = b.dataset.ransomware || '';
                     return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
@@ -778,10 +724,10 @@ function exportToCSV(section, table, rows) {
 
     rows.forEach(row => {
         const rowData = [
-            row.cells[0].textContent.trim(),
-            row.cells[1].textContent.trim(),
-            row.cells[2].textContent.trim(),
-            row.cells[3].textContent.trim(),
+            row.cells[COL_IDX.cve].textContent.trim(),
+            row.cells[COL_IDX.name].textContent.trim(),
+            row.cells[COL_IDX.vendor].textContent.trim(),
+            row.cells[COL_IDX.product].textContent.trim(),
             row.dataset.dateAdded || '',
             row.dataset.dueDate || '',
             row.dataset.ransomware || '',
@@ -808,7 +754,7 @@ function exportToCSV(section, table, rows) {
         }
     }
 
-    const date = formatLocalDate(new Date());
+    const date = DATE.formatLocalDate ? DATE.formatLocalDate(new Date()) : '';
     link.setAttribute('download', `CISA-${sectionName}-${date}.csv`);
     link.style.display = 'none';
     document.body.appendChild(link);
@@ -816,5 +762,7 @@ function exportToCSV(section, table, rows) {
     link.click();
     document.body.removeChild(link);
 
-    setStatusMessage(`Export complete: CISA-${sectionName}-${date}.csv`);
+    if (TOAST.setStatusMessage) {
+        TOAST.setStatusMessage(`Export complete: CISA-${sectionName}-${date}.csv`);
+    }
 }

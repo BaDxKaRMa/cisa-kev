@@ -62,7 +62,11 @@ jobs:
       - name: Validate Python syntax
         run: uv run python -m py_compile app/*.py
       - name: Validate JavaScript syntax
-        run: node --check app/static/js/dashboard.js
+        run: |
+          node --check app/static/js/dashboard-config.js
+          node --check app/static/js/dashboard-date.js
+          node --check app/static/js/dashboard-toast.js
+          node --check app/static/js/dashboard.js
       - name: Run unit tests
         run: uv run python -m unittest discover -s tests -v
       - name: Configure GitHub Pages

@@ -57,13 +57,7 @@
             <details class="column-settings">
                 <summary>Columns</summary>
                 <div class="column-options">
-                    <label><input class="column-toggle" type="checkbox" data-col="0" checked> CVE ID</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="1" checked> Name</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="2" checked> Vendor</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="3" checked> Product</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="4" checked> Date Added</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="5" checked> Due Date</label>
-                    <label><input class="column-toggle" type="checkbox" data-col="6" checked> Ransomware</label>
+                    <div id="column-options-list"></div>
                     <button id="reset-columns" type="button" class="mini-btn">Reset Default</button>
                 </div>
             </details>
@@ -88,6 +82,9 @@
         <div class="pagination" id="main-pagination"></div>
     </div>
 
+    <script src="./static/js/dashboard-config.js"></script>
+    <script src="./static/js/dashboard-date.js"></script>
+    <script src="./static/js/dashboard-toast.js"></script>
     <script src="./static/js/dashboard.js"></script>
 </body>
 </html>
