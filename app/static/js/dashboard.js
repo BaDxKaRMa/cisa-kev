@@ -83,23 +83,16 @@ function addRansomwareCell(row, value) {
     const cell = document.createElement('td');
     cell.className = 'ransomware-cell';
     const badge = document.createElement('span');
-    const marker = document.createElement('span');
-    const label = document.createElement('span');
     const normalized = value || 'Unknown';
 
     badge.className = 'ransomware-badge ransomware-pill';
-    marker.className = 'ransomware-marker';
     if (normalized === 'Known') {
-        badge.classList.add('ransomware-known', 'ransomware-known-pill');
-        marker.textContent = '!';
+        badge.classList.add('ransomware-known');
     } else {
-        badge.classList.add('ransomware-unknown', 'ransomware-unknown-tag');
-        marker.textContent = '?';
+        badge.classList.add('ransomware-unknown');
     }
 
-    label.textContent = normalized;
-    badge.appendChild(marker);
-    badge.appendChild(label);
+    badge.textContent = normalized;
 
     cell.appendChild(badge);
     row.appendChild(cell);
