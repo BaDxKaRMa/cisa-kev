@@ -7,9 +7,19 @@ on:
     - cron: '0 0 * * *'  # every day at midnight
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -21,18 +31,141 @@ jobs:
           curl -Ls https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install dependencies with uv
-        run: uv sync
+        run: uv sync --locked
+      - name: Capture baseline KEV IDs
+        run: |
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path("data/known_exploited_vulnerabilities.json")
+          baseline_ids = set()
+
+          if source.exists():
+              try:
+                  payload = json.loads(source.read_text(encoding="utf-8"))
+                  for vuln in payload.get("vulnerabilities", []):
+                      cve_id = vuln.get("cveID")
+                      if cve_id:
+                          baseline_ids.add(cve_id)
+              except Exception:
+                  pass
+
+          build_dir = Path("build")
+          build_dir.mkdir(exist_ok=True)
+          (build_dir / "previous_kev_ids.txt").write_text(
+              "\n".join(sorted(baseline_ids)),
+              encoding="utf-8",
+          )
+          print(f"Captured {len(baseline_ids)} baseline CVE IDs")
+          PY
+      - name: Validate Python syntax
+        run: uv run python -m py_compile app/*.py
+      - name: Validate JavaScript syntax
+        run: node --check app/static/js/dashboard.js
+      - name: Run unit tests
+        run: uv run python -m unittest discover -s tests -v
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
       - name: Generate static site
         run: |
           uv run python app/generate_static.py
-          # Create .nojekyll file to prevent GitHub from ignoring files that start with underscores
           touch site/.nojekyll
-          echo "Contents of site directory:"
-          ls -la site/
-      - name: Deploy to GitHub Pages
-        if: success()
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Generate KEV update summary
+        run: |
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          build_dir = Path("build")
+          previous_file = build_dir / "previous_kev_ids.txt"
+          current_file = Path("data/known_exploited_vulnerabilities.json")
+
+          previous_ids = set()
+          if previous_file.exists():
+              previous_ids = {
+                  line.strip()
+                  for line in previous_file.read_text(encoding="utf-8").splitlines()
+                  if line.strip()
+              }
+
+          current_payload = {}
+          if current_file.exists():
+              current_payload = json.loads(current_file.read_text(encoding="utf-8"))
+
+          current_ids = {
+              vuln.get("cveID")
+              for vuln in current_payload.get("vulnerabilities", [])
+              if vuln.get("cveID")
+          }
+
+          added = sorted(current_ids - previous_ids)
+          removed = sorted(previous_ids - current_ids)
+
+          summary = {
+              "previous_count": len(previous_ids),
+              "current_count": len(current_ids),
+              "added_count": len(added),
+              "removed_count": len(removed),
+              "added": added,
+              "removed": removed,
+          }
+
+          (build_dir / "kev-update-summary.json").write_text(
+              json.dumps(summary, indent=2),
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# KEV Update Summary",
+              "",
+              f"- Previous CVE count: {len(previous_ids)}",
+              f"- Current CVE count: {len(current_ids)}",
+              f"- Added since previous run: {len(added)}",
+              f"- Removed since previous run: {len(removed)}",
+              "",
+          ]
+
+          if added:
+              lines.append("## Added CVEs")
+              lines.extend([f"- {cve_id}" for cve_id in added[:50]])
+              if len(added) > 50:
+                  lines.append(f"- ... and {len(added) - 50} more")
+              lines.append("")
+
+          if removed:
+              lines.append("## Removed CVEs")
+              lines.extend([f"- {cve_id}" for cve_id in removed[:50]])
+              if len(removed) > 50:
+                  lines.append(f"- ... and {len(removed) - 50} more")
+              lines.append("")
+
+          markdown = "\n".join(lines).strip() + "\n"
+          (build_dir / "kev-update-summary.md").write_text(markdown, encoding="utf-8")
+          print(markdown)
+          PY
+      - name: Publish KEV summary in workflow UI
+        run: cat build/kev-update-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload KEV summary artifact
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          force_orphan: true  # Create a new orphan branch with only the latest commit
+          name: kev-update-summary
+          path: |
+            build/kev-update-summary.md
+            build/kev-update-summary.json
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

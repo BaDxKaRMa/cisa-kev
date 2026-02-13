@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'">
     <title>CISA KEV Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' style='display:block'%3E%3Cpath d='M8 1 L14 3.5 V9.5 C14 12.5 11.5 14.5 8 15 C4.5 14.5 2 12.5 2 9.5 V3.5 Z' fill='%23007bff'/%3E%3Cpath d='M8 1 L14 3.5 V9.5 C14 12.5 11.5 14.5 8 15 Z' fill='%23ff2d2d'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="./static/css/styles.css">
 </head>
 <body>
     <h1>CISA Known Exploited Vulnerabilities</h1>
+    <div id="main-status" class="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="section">
         <strong>Catalog Version:</strong> {{ catalogVersion }}<br>
         <strong>Date Released:</strong> {{ dateReleased }}<br>
+        <strong>Last Synced (UTC):</strong> {{ lastSynced }}<br>
         <strong>Total Vulnerabilities:</strong> {{ count }}
     </div>
 
@@ -25,7 +29,7 @@
 
     <div class="section">
         <div class="table-header">Vulnerabilities
-            <label class="view-filter" style="margin-left: 1em; font-weight: normal;">
+            <label class="view-filter">
                 View:
                 <select id="view-selector">
                     <option value="recent">Recently Added</option>
@@ -34,10 +38,11 @@
                 </select>
             </label>
         </div>
-        <div id="view-desc" class="desc" style="margin-bottom: 0.5em;">
+        <div id="view-desc" class="desc compact-desc">
             <!-- Dynamic view description will be inserted here by JS -->
         </div>
         <div class="table-controls">
+            <label for="main-search" class="visually-hidden">Search vulnerabilities</label>
             <input class="search-bar" type="text" id="main-search" placeholder="Search...">
             <label class="per-page">Per page:
                 <select id="main-per-page">
@@ -54,9 +59,10 @@
         </div>
         <div class="table-wrapper">
         <table id="main-table">
+            <caption class="visually-hidden">CISA Known Exploited Vulnerabilities table</caption>
             <thead>
             <tr>
-                <th>CVE ID</th><th>Name</th><th>Vendor</th><th>Product</th><th>Date Added</th><th title="Required remediation date set by CISA">Due Date</th><th>Ransomware</th>
+                <th scope="col">CVE ID</th><th scope="col">Name</th><th scope="col">Vendor</th><th scope="col">Product</th><th scope="col">Date Added</th><th scope="col" title="Required remediation date set by CISA">Due Date</th><th scope="col">Ransomware</th>
             </tr>
             </thead>
             <tbody id="main-table-body">

@@ -46,7 +46,7 @@ pip install -e .
 3. Generate the static site locally:
 
 ```bash
-python app/generate_static.py
+uv run python app/generate_static.py
 ```
 
 4. Test the site locally using Python's built-in server:
@@ -89,7 +89,7 @@ cisa-kev/
 3. Enhance JavaScript functionality in `app/static/js/dashboard.js`
 4. Run the site generator to see changes:
    ```bash
-   python app/generate_static.py
+   uv run python app/generate_static.py
    ```
 
 ### Testing
@@ -113,7 +113,7 @@ The project uses GitHub Actions for automatic deployment to GitHub Pages:
 
 1. Fork this repository
 2. Go to Repository Settings → Pages
-3. Select the `gh-pages` branch for deployment
+3. Set Source to **GitHub Actions**
 4. The site will be available at `https://<yourusername>.github.io/cisa-kev/`
 
 ## 🧪 Technical Details

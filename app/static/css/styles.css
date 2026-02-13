@@ -29,7 +29,6 @@
     --pagination-bg: #23262f;
     --pagination-active: #4f8cff;
     --pagination-text: #e6e6e6;
-    --export-success: #00e6a2;
 }
 
 body {
@@ -46,6 +45,27 @@ h1, h2 {
     font-weight: 700;
     letter-spacing: 0.02em;
     margin-top: 0;
+}
+
+.status-message {
+    min-height: 1.25em;
+    margin: 0.5em auto 0;
+    width: 98vw;
+    color: var(--text-muted);
+    font-size: 0.95em;
+}
+
+.visually-hidden {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+    white-space: nowrap;
 }
 
 .section {
@@ -103,10 +123,19 @@ h1, h2 {
     color: var(--primary);
 }
 
+.view-filter {
+    margin-left: 1em;
+    font-weight: normal;
+}
+
 .desc {
     color: var(--text-muted);
     margin-bottom: 1em;
     font-size: 1.05em;
+}
+
+.compact-desc {
+    margin-bottom: 0.5em;
 }
 
 .table-controls {
@@ -203,12 +232,6 @@ select {
     font-size: 1.1em;
     padding: 0 6px;
     align-self: center;
-}
-
-.pagination-info {
-    margin: 0.5em 0;
-    color: var(--text-muted);
-    font-size: 1em;
 }
 
 /* Table Styles */
@@ -331,32 +354,3 @@ table td:nth-child(6) {
         font-size: 0.92em;
     }
 }
-
-/* Success message for export */
-.export-success {
-    color: var(--export-success);
-    background: #1e2e23;
-    border-left: 3px solid var(--export-success);
-    padding: 0.5em 1em;
-    margin: 0.5em 0;
-    border-radius: 6px;
-    font-weight: 500;
-}
-
-.ransomware-filter {
-    color: var(--text-muted);
-    font-size: 1em;
-    margin-left: 1em;
-}
-.ransomware-filter select {
-    background: var(--input-bg);
-    color: var(--input-text);
-    border: 1px solid var(--input-border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 1em;
-    outline: none;
-    margin-left: 0.5em;
-}
-
-

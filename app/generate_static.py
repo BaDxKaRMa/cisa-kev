@@ -1,12 +1,20 @@
 import os
 import shutil
 import sys
+from datetime import UTC, datetime
 
 from jinja2 import Environment, FileSystemLoader
 
 # Ensure project root is in sys.path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from app.data_utils import load_local_data, update_if_changed
+
+
+def get_last_synced_utc(data_path):
+    if not os.path.exists(data_path):
+        return "N/A"
+    modified = datetime.fromtimestamp(os.path.getmtime(data_path), UTC)
+    return modified.strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def main():
@@ -29,9 +37,13 @@ def main():
     )
     template = env.get_template("index.html")
     data = load_local_data() or {}
+    data_src = os.path.join(
+        os.path.dirname(__file__), "..", "data", "known_exploited_vulnerabilities.json"
+    )
     html = template.render(
         catalogVersion=data.get("catalogVersion", "N/A"),
         dateReleased=data.get("dateReleased", "N/A"),
+        lastSynced=get_last_synced_utc(data_src),
         count=data.get("count", 0),
         vulns=data.get("vulnerabilities", []),
     )
@@ -44,9 +56,6 @@ def main():
     shutil.copytree(static_src, static_dst)
 
     # Copy JSON data file to site directory
-    data_src = os.path.join(
-        os.path.dirname(__file__), "..", "data", "known_exploited_vulnerabilities.json"
-    )
     data_dst = os.path.join(output_dir, "known_exploited_vulnerabilities.json")
     if os.path.exists(data_src):
         shutil.copy(data_src, data_dst)
