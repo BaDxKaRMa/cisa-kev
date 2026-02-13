@@ -7,6 +7,41 @@ function formatLocalDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+function parseIsoDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
+function startOfToday() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function dayDiff(fromDate, toDate) {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.round((toDate - fromDate) / msPerDay);
+}
+
+function describeDueDate(dueDateValue) {
+    const dueDate = parseIsoDate(dueDateValue);
+    if (!dueDate) return '';
+
+    const deltaDays = dayDiff(startOfToday(), dueDate);
+    if (deltaDays < 0) return `past due ${Math.abs(deltaDays)}d`;
+    if (deltaDays === 0) return 'due today';
+    return `in ${deltaDays}d`;
+}
+
+function describeDateAdded(dateAddedValue) {
+    const dateAdded = parseIsoDate(dateAddedValue);
+    if (!dateAdded) return '';
+
+    const deltaDays = dayDiff(dateAdded, startOfToday());
+    if (deltaDays < 0) return `adds in ${Math.abs(deltaDays)}d`;
+    return `added ${deltaDays}d ago`;
+}
+
 function renderTableError(message) {
     const tbody = document.getElementById('main-table-body');
     if (!tbody) return;
@@ -27,85 +62,255 @@ function addTextCell(row, value) {
     row.appendChild(cell);
 }
 
+function addDateCell(row, value, subtext) {
+    const cell = document.createElement('td');
+    const main = document.createElement('div');
+    main.className = 'cell-main';
+    main.textContent = value ?? '';
+
+    cell.appendChild(main);
+    if (subtext) {
+        const meta = document.createElement('div');
+        meta.className = 'cell-subtext';
+        meta.textContent = subtext;
+        cell.appendChild(meta);
+    }
+
+    row.appendChild(cell);
+}
+
+function addRansomwareCell(row, value) {
+    const cell = document.createElement('td');
+    const badge = document.createElement('span');
+    const normalized = value || 'Unknown';
+
+    badge.className = 'ransomware-badge';
+    if (normalized === 'Known') {
+        badge.classList.add('ransomware-known');
+    } else {
+        badge.classList.add('ransomware-unknown');
+    }
+    badge.textContent = normalized;
+
+    cell.appendChild(badge);
+    row.appendChild(cell);
+}
+
 function setStatusMessage(message) {
     const status = document.getElementById('main-status');
     if (!status) return;
     status.textContent = message;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Fetch JSON data and populate table, then initialize controls
-    fetch('./known_exploited_vulnerabilities.json')
-      .then(response => {
-        if (!response.ok) {
-            throw new Error(`Failed to load KEV data (${response.status})`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        const tbody = document.getElementById('main-table-body');
-        if (!tbody) return;
-        const vulnerabilities = Array.isArray(data.vulnerabilities) ? data.vulnerabilities : [];
-        tbody.innerHTML = '';
-        vulnerabilities.forEach(v => {
-          const row = document.createElement('tr');
-          const dateAdded = v.dateAdded ?? '';
-          const ransomwareUse = v.knownRansomwareCampaignUse ?? '';
+function uniqueLinks(cveId, notes) {
+    const links = [];
+    const seen = new Set();
 
-          row.setAttribute('data-date-added', dateAdded);
-          row.setAttribute('data-ransomware', ransomwareUse);
-          if (ransomwareUse === 'Known') {
-              row.classList.add('high-priority');
-          }
+    const addLink = (url, label) => {
+        if (!url || seen.has(url)) return;
+        seen.add(url);
+        links.push({ url, label });
+    };
 
-          addTextCell(row, v.cveID);
-          addTextCell(row, v.vulnerabilityName);
-          addTextCell(row, v.vendorProject);
-          addTextCell(row, v.product);
-          addTextCell(row, dateAdded);
-          addTextCell(row, v.dueDate);
-          addTextCell(row, ransomwareUse);
-          tbody.appendChild(row);
+    if (cveId) {
+        addLink(`https://www.cve.org/CVERecord?id=${encodeURIComponent(cveId)}`, 'CVE Record');
+        addLink(`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(cveId)}`, 'NVD Entry');
+    }
+
+    const urls = (notes || '').match(/https?:\/\/[^\s;]+/g) || [];
+    urls.forEach((url, index) => addLink(url, `Reference ${index + 1}`));
+
+    return links;
+}
+
+function extractPlainNotes(notes) {
+    if (!notes) return '';
+    return notes
+        .replace(/https?:\/\/[^\s;]+/g, '')
+        .replace(/\s*;\s*/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildDetailRow(vulnerability, rowId) {
+    const detailsRow = document.createElement('tr');
+    detailsRow.className = 'details-row';
+    detailsRow.dataset.parentId = rowId;
+    detailsRow.style.display = 'none';
+
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+
+    const content = document.createElement('div');
+    content.className = 'details-content';
+
+    const summary = document.createElement('div');
+    summary.className = 'details-section';
+    const summaryTitle = document.createElement('strong');
+    summaryTitle.textContent = 'Summary: ';
+    summary.appendChild(summaryTitle);
+    summary.appendChild(document.createTextNode(vulnerability.shortDescription || 'No summary available.'));
+    content.appendChild(summary);
+
+    const action = document.createElement('div');
+    action.className = 'details-section';
+    const actionTitle = document.createElement('strong');
+    actionTitle.textContent = 'Required Action: ';
+    action.appendChild(actionTitle);
+    action.appendChild(document.createTextNode(vulnerability.requiredAction || 'No required action provided.'));
+    content.appendChild(action);
+
+    const notesText = extractPlainNotes(vulnerability.notes);
+    if (notesText) {
+        const notes = document.createElement('div');
+        notes.className = 'details-section';
+        const notesTitle = document.createElement('strong');
+        notesTitle.textContent = 'Notes: ';
+        notes.appendChild(notesTitle);
+        notes.appendChild(document.createTextNode(notesText));
+        content.appendChild(notes);
+    }
+
+    if (Array.isArray(vulnerability.cwes) && vulnerability.cwes.length > 0) {
+        const cwes = document.createElement('div');
+        cwes.className = 'details-section';
+        const cwesTitle = document.createElement('strong');
+        cwesTitle.textContent = 'CWEs: ';
+        cwes.appendChild(cwesTitle);
+        cwes.appendChild(document.createTextNode(vulnerability.cwes.join(', ')));
+        content.appendChild(cwes);
+    }
+
+    const links = uniqueLinks(vulnerability.cveID, vulnerability.notes);
+    if (links.length > 0) {
+        const linkSection = document.createElement('div');
+        linkSection.className = 'details-section';
+        const linksTitle = document.createElement('strong');
+        linksTitle.textContent = 'Links: ';
+        linkSection.appendChild(linksTitle);
+
+        links.forEach((item, index) => {
+            const anchor = document.createElement('a');
+            anchor.href = item.url;
+            anchor.target = '_blank';
+            anchor.rel = 'noopener noreferrer';
+            anchor.textContent = item.label;
+            linkSection.appendChild(anchor);
+            if (index < links.length - 1) {
+                linkSection.appendChild(document.createTextNode(' | '));
+            }
         });
-        // Now initialize controls and highlighting
-        initMainTableControls();
-        highlightDueDates();
-      })
-      .catch(error => {
-        console.error(error);
-        renderTableError('Unable to load KEV data. Please refresh or try again later.');
-      });
+
+        content.appendChild(linkSection);
+    }
+
+    cell.appendChild(content);
+    detailsRow.appendChild(cell);
+    return detailsRow;
+}
+
+function toggleDetailRow(row, detailsRow) {
+    const expanded = row.getAttribute('aria-expanded') === 'true';
+    row.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    row.classList.toggle('expanded', !expanded);
+    detailsRow.style.display = expanded ? 'none' : '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('./known_exploited_vulnerabilities.json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load KEV data (${response.status})`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tbody = document.getElementById('main-table-body');
+            if (!tbody) return;
+
+            const vulnerabilities = Array.isArray(data.vulnerabilities) ? data.vulnerabilities : [];
+            tbody.innerHTML = '';
+
+            vulnerabilities.forEach((vulnerability, index) => {
+                const row = document.createElement('tr');
+                row.classList.add('data-row');
+                row.tabIndex = 0;
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-expanded', 'false');
+
+                const rowId = String(index);
+                const dateAdded = vulnerability.dateAdded || '';
+                const dueDate = vulnerability.dueDate || '';
+                const ransomwareUse = vulnerability.knownRansomwareCampaignUse || 'Unknown';
+
+                row.dataset.rowId = rowId;
+                row.dataset.dateAdded = dateAdded;
+                row.dataset.dueDate = dueDate;
+                row.dataset.ransomware = ransomwareUse;
+
+                if (ransomwareUse === 'Known') {
+                    row.classList.add('high-priority');
+                }
+
+                addTextCell(row, vulnerability.cveID);
+                addTextCell(row, vulnerability.vulnerabilityName);
+                addTextCell(row, vulnerability.vendorProject);
+                addTextCell(row, vulnerability.product);
+                addDateCell(row, dateAdded, describeDateAdded(dateAdded));
+                addDateCell(row, dueDate, describeDueDate(dueDate));
+                addRansomwareCell(row, ransomwareUse);
+
+                const detailsRow = buildDetailRow(vulnerability, rowId);
+
+                row.addEventListener('click', function(event) {
+                    if (event.target.closest('a')) return;
+                    toggleDetailRow(row, detailsRow);
+                });
+
+                row.addEventListener('keydown', function(event) {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    toggleDetailRow(row, detailsRow);
+                });
+
+                tbody.appendChild(row);
+                tbody.appendChild(detailsRow);
+            });
+
+            initMainTableControls();
+            highlightDueDates();
+        })
+        .catch(error => {
+            console.error(error);
+            renderTableError('Unable to load KEV data. Please refresh or try again later.');
+        });
 });
 
-// Function to highlight rows based on dates
 function highlightDueDates() {
-    // Get current date
     const today = new Date();
     const twoWeeksFromNow = new Date(today);
     twoWeeksFromNow.setDate(today.getDate() + 14);
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    // Format dates as YYYY-MM-DD for comparison
+
     const todayStr = formatLocalDate(today);
     const twoWeeksStr = formatLocalDate(twoWeeksFromNow);
     const thirtyDaysAgoStr = formatLocalDate(thirtyDaysAgo);
-    // Only process the main table
+
     const table = document.getElementById('main-table');
     if (!table) return;
-    const rows = table.querySelectorAll('tbody tr');
+
+    const rows = table.querySelectorAll('tbody tr.data-row');
     rows.forEach(row => {
         row.classList.remove('recent', 'due-date-past', 'due-date-soon');
-        const dueDateCell = row.cells[5];
-        if (!dueDateCell) return;
-        const dateAddedCell = row.cells[4];
-        if (!dateAddedCell) return;
-        const dueDateText = dueDateCell.textContent.trim();
-        const dateAddedText = dateAddedCell.textContent.trim();
-        // Check if recently added (within last 30 days)
+
+        const dueDateText = row.dataset.dueDate || '';
+        const dateAddedText = row.dataset.dateAdded || '';
+
         if (dateAddedText && dateAddedText >= thirtyDaysAgoStr) {
             row.classList.add('recent');
         }
-        // Check due date
+
         if (dueDateText) {
             if (dueDateText < todayStr) {
                 row.classList.add('due-date-past');
@@ -119,19 +324,20 @@ function highlightDueDates() {
 function initMainTableControls() {
     const table = document.getElementById('main-table');
     if (!table) return;
+
     const tbody = table.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const rows = Array.from(tbody.querySelectorAll('tr.data-row'));
     const searchInput = document.getElementById('main-search');
     const perPageSelect = document.getElementById('main-per-page');
     const pagination = document.getElementById('main-pagination');
     const viewSelector = document.getElementById('view-selector');
     const viewDesc = document.getElementById('view-desc');
+
     let currentPage = 1;
     let sortColumn = null;
     let sortDirection = 'asc';
     let currentVisibleRows = rows;
 
-    // Add event listeners
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             currentPage = 1;
@@ -152,13 +358,14 @@ function initMainTableControls() {
         });
     }
 
-    // Set initial view description
     updateViewDesc();
+
     function updateViewDesc() {
         if (!viewDesc || !viewSelector) return;
         const viewValue = viewSelector.value;
         let heading = '';
         let description = '';
+
         if (viewValue === 'recent') {
             heading = 'Recently Added:';
             description = ' Showing vulnerabilities added in the last 30 days.';
@@ -169,6 +376,7 @@ function initMainTableControls() {
             heading = 'All Vulnerabilities:';
             description = ' Showing the full CISA KEV catalog.';
         }
+
         viewDesc.textContent = '';
         const strong = document.createElement('strong');
         strong.textContent = heading;
@@ -176,12 +384,12 @@ function initMainTableControls() {
         viewDesc.appendChild(document.createTextNode(description));
     }
 
-    // Add sorting to column headers
     const headers = table.querySelectorAll('thead th');
     headers.forEach((header, columnIndex) => {
         header.setAttribute('data-original-text', header.textContent);
         header.setAttribute('data-sortable', 'true');
         header.style.cursor = 'pointer';
+
         header.addEventListener('click', function() {
             if (sortColumn === columnIndex) {
                 sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -189,16 +397,17 @@ function initMainTableControls() {
                 sortColumn = columnIndex;
                 sortDirection = 'asc';
             }
+
             headers.forEach(h => {
                 h.textContent = h.getAttribute('data-original-text');
             });
+
             header.textContent = header.getAttribute('data-original-text') + (sortDirection === 'asc' ? ' ▲' : ' ▼');
             currentPage = 1;
             updateTable();
         });
     });
 
-    // Export button
     const exportBtn = document.getElementById('main-export-filtered');
     if (exportBtn) {
         exportBtn.addEventListener('click', function() {
@@ -206,96 +415,106 @@ function initMainTableControls() {
         });
     }
 
-    // Initial update
     updateTable();
 
     function updateTable() {
-        // Get filter and page size
         const filterText = searchInput ? searchInput.value.toLowerCase() : '';
         const perPageValue = perPageSelect ? perPageSelect.value : '25';
-        const perPage = perPageValue.toLowerCase() === 'all' ? rows.length : parseInt(perPageValue);
+        const perPage = perPageValue.toLowerCase() === 'all' ? rows.length : parseInt(perPageValue, 10);
         const viewValue = viewSelector ? viewSelector.value : 'recent';
         const today = new Date();
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
         const thirtyDaysAgoStr = formatLocalDate(thirtyDaysAgo);
 
-        // Filter rows by view
         let visibleRows = rows.filter(row => {
-            const dateAdded = row.cells[4].textContent.trim();
-            const ransomware = row.cells[6].textContent.trim();
+            const dateAdded = row.dataset.dateAdded || '';
+            const ransomware = row.dataset.ransomware || '';
             if (viewValue === 'recent') {
-                // Added in last 30 days
                 return dateAdded >= thirtyDaysAgoStr;
-            } else if (viewValue === 'high') {
-                // Known ransomware use
+            }
+            if (viewValue === 'high') {
                 return ransomware === 'Known';
             }
-            // 'all' view: show all
             return true;
         });
 
-        // Apply keyword search filter
         if (filterText) {
-            visibleRows = visibleRows.filter(row => row.textContent.toLowerCase().includes(filterText));
+            visibleRows = visibleRows.filter(row => {
+                const detailsRow = row.nextElementSibling;
+                const detailsText = detailsRow && detailsRow.classList.contains('details-row') ? detailsRow.textContent : '';
+                return (row.textContent + ' ' + detailsText).toLowerCase().includes(filterText);
+            });
         }
 
-        // Sort rows if a sort column is selected
         if (sortColumn !== null) {
             visibleRows.sort((a, b) => {
+                if (sortColumn === 4 || sortColumn === 5) {
+                    const valueA = sortColumn === 4 ? (a.dataset.dateAdded || '') : (a.dataset.dueDate || '');
+                    const valueB = sortColumn === 4 ? (b.dataset.dateAdded || '') : (b.dataset.dueDate || '');
+                    return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+                }
+
+                if (sortColumn === 6) {
+                    const valueA = a.dataset.ransomware || '';
+                    const valueB = b.dataset.ransomware || '';
+                    return sortDirection === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+                }
+
                 const cellA = a.cells[sortColumn].textContent.trim();
                 const cellB = b.cells[sortColumn].textContent.trim();
-                // Check if the values are dates (YYYY-MM-DD format)
-                if (/^\d{4}-\d{2}-\d{2}$/.test(cellA) && /^\d{4}-\d{2}-\d{2}$/.test(cellB)) {
-                    const dateA = new Date(cellA);
-                    const dateB = new Date(cellB);
-                    return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-                }
-                if (!isNaN(parseFloat(cellA)) && !isNaN(parseFloat(cellB))) {
-                    return sortDirection === 'asc' ? parseFloat(cellA) - parseFloat(cellB) : parseFloat(cellB) - parseFloat(cellA);
-                }
                 return sortDirection === 'asc' ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
             });
         }
 
-        // Update current visible rows for export
         currentVisibleRows = visibleRows;
 
-        // Pagination
         const totalVisible = visibleRows.length;
         const pageCount = Math.ceil(totalVisible / perPage);
         if (currentPage > pageCount) {
             currentPage = Math.max(1, pageCount);
         }
 
-        // Show/hide rows
-        rows.forEach(row => row.style.display = 'none');
-        visibleRows.forEach((row, idx) => {
-            row.style.display = (idx >= (currentPage - 1) * perPage && idx < currentPage * perPage) ? '' : 'none';
+        rows.forEach(row => {
+            row.style.display = 'none';
+            const detailsRow = row.nextElementSibling;
+            if (detailsRow && detailsRow.classList.contains('details-row')) {
+                detailsRow.style.display = 'none';
+            }
         });
 
-        // Update pagination
-        updatePagination(pageCount);
+        visibleRows.forEach((row, idx) => {
+            const inPage = idx >= (currentPage - 1) * perPage && idx < currentPage * perPage;
+            if (!inPage) return;
 
-        // Highlight due dates for visible rows
+            row.style.display = '';
+            const detailsRow = row.nextElementSibling;
+            if (detailsRow && detailsRow.classList.contains('details-row') && row.getAttribute('aria-expanded') === 'true') {
+                detailsRow.style.display = '';
+            }
+        });
+
+        updatePagination(pageCount);
         highlightDueDates();
     }
 
     function updatePagination(pageCount) {
         pagination.innerHTML = '';
         if (pageCount <= 1) return;
+
         const maxButtons = 7;
         const fragment = document.createDocumentFragment();
 
         if (pageCount > maxButtons) {
-            let pages = [];
-            pages.push(1);
-            let start = Math.max(2, currentPage - 2);
-            let end = Math.min(pageCount - 1, currentPage + 2);
+            const pages = [1];
+            const start = Math.max(2, currentPage - 2);
+            const end = Math.min(pageCount - 1, currentPage + 2);
+
             if (start > 2) pages.push('...');
             for (let i = start; i <= end; i++) pages.push(i);
             if (end < pageCount - 1) pages.push('...');
             pages.push(pageCount);
+
             pages.forEach(p => {
                 if (p === '...') {
                     const span = document.createElement('span');
@@ -332,27 +551,30 @@ function initMainTableControls() {
 }
 
 function exportToCSV(section, table, rows) {
-    // Get headers
     const headers = Array.from(table.querySelectorAll('thead th'))
         .map(th => `"${th.textContent.replace(/"/g, '""')}"`);
 
-    // Create CSV content
     let csvContent = headers.join(',') + '\n';
 
-    // Add rows
     rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        const rowData = cells.map(cell => `"${cell.textContent.replace(/"/g, '""')}"`);
+        const rowData = [
+            row.cells[0].textContent.trim(),
+            row.cells[1].textContent.trim(),
+            row.cells[2].textContent.trim(),
+            row.cells[3].textContent.trim(),
+            row.dataset.dateAdded || '',
+            row.dataset.dueDate || '',
+            row.dataset.ransomware || '',
+        ].map(value => `"${String(value).replace(/"/g, '""')}"`);
+
         csvContent += rowData.join(',') + '\n';
     });
 
-    // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
 
-    // Use the current view for the filename
     let sectionName = 'KEVs';
     const viewSelector = document.getElementById('view-selector');
     if (viewSelector) {
@@ -365,12 +587,12 @@ function exportToCSV(section, table, rows) {
             sectionName = 'All-KEVs';
         }
     }
+
     const date = formatLocalDate(new Date());
     link.setAttribute('download', `CISA-${sectionName}-${date}.csv`);
     link.style.display = 'none';
     document.body.appendChild(link);
 
-    // Click and remove link
     link.click();
     document.body.removeChild(link);
 
