@@ -2,7 +2,7 @@
 
 ![CISA KEV Dashboard](https://img.shields.io/badge/CISA-KEV%20Dashboard-blue)
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-green)
+[![Deploy Workflow](https://github.com/BaDxKaRMa/cisa-kev/actions/workflows/deploy.yml/badge.svg)](https://github.com/BaDxKaRMa/cisa-kev/actions/workflows/deploy.yml)
 ![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-blueviolet)
 
 A modern, interactive dashboard for monitoring and exploring CISA's Known Exploited Vulnerabilities (KEV) catalog. This project automatically fetches the latest data from CISA and presents it through an accessible, searchable web interface with filtering options, highlights for critical vulnerabilities, and CSV export capabilities.
