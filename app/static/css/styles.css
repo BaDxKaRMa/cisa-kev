@@ -93,15 +93,6 @@ h1, h2 {
     letter-spacing: 0.01em;
 }
 
-.status-message {
-    min-height: 1.25em;
-    margin: 0.35em auto 0;
-    width: 98vw;
-    color: var(--text-muted);
-    font-size: 0.95em;
-    text-align: center;
-}
-
 .copy-toast {
     position: fixed;
     right: 18px;
