@@ -32,6 +32,8 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install dependencies with uv
         run: uv sync --locked
+      - name: Install frontend test dependencies
+        run: npm ci
       - name: Capture baseline KEV IDs
         run: |
           uv run python - <<'PY'
@@ -69,6 +71,8 @@ jobs:
           node --check app/static/js/dashboard.js
       - name: Run unit tests
         run: uv run python -m unittest discover -s tests -v
+      - name: Run frontend tests
+        run: npm run test:frontend
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Generate static site

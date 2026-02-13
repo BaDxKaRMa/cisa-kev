@@ -1,0 +1,14 @@
+{
+  "name": "cisa-kev-frontend-tests",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "scripts": {
+    "test:frontend": "vitest run",
+    "test:frontend:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "vitest": "^2.1.8"
+  }
+}
