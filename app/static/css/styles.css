@@ -345,7 +345,8 @@ select {
 /* Table Styles */
 .table-wrapper {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
+    overflow-y: visible;
     border-radius: 12px;
     box-sizing: border-box;
 }
@@ -545,6 +546,8 @@ table td:nth-child(6) {
     }
     .table-wrapper {
         width: 100vw;
+        overflow-x: auto;
+        overflow-y: visible;
     }
     table {
         min-width: 500px;
