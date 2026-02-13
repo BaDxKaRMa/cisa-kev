@@ -109,16 +109,16 @@ function addCveCell(row, value) {
             navigator.clipboard.writeText(cveText)
                 .then(() => {
                     setStatusMessage(`Copied ${cveText}`);
-                    showCopyToast(`Copied ${cveText}`);
+                    showCopyToast(`Copied ${cveText}`, 'success');
                 })
                 .catch(() => {
                     setStatusMessage('Unable to copy CVE ID');
-                    showCopyToast('Unable to copy CVE ID');
+                    showCopyToast('Unable to copy CVE ID', 'error');
                 });
             return;
         }
         setStatusMessage('Clipboard not available');
-        showCopyToast('Clipboard not available');
+        showCopyToast('Clipboard not available', 'error');
     }
 
     trigger.addEventListener('click', copyCve);
@@ -175,16 +175,40 @@ function setStatusMessage(message) {
 }
 
 let copyToastTimer = null;
-function showCopyToast(message) {
+function showCopyToast(message, variant = 'info') {
     let toast = document.getElementById('copy-toast');
     if (!toast) {
         toast = document.createElement('div');
         toast.id = 'copy-toast';
         toast.className = 'copy-toast';
+        toast.innerHTML = `
+            <span class="copy-toast-icon" aria-hidden="true"></span>
+            <span class="copy-toast-text"></span>
+            <span class="copy-toast-progress"></span>
+        `;
         document.body.appendChild(toast);
     }
 
-    toast.textContent = message;
+    const icon = toast.querySelector('.copy-toast-icon');
+    const text = toast.querySelector('.copy-toast-text');
+    const progress = toast.querySelector('.copy-toast-progress');
+
+    if (text) text.textContent = message;
+    toast.classList.remove('copy-toast-success', 'copy-toast-error', 'copy-toast-info');
+    toast.classList.add(`copy-toast-${variant}`);
+
+    if (icon) {
+        icon.textContent =
+            variant === 'success' ? '✓' :
+            variant === 'error' ? '!' : 'i';
+    }
+
+    if (progress) {
+        progress.classList.remove('animating');
+        void progress.offsetWidth;
+        progress.classList.add('animating');
+    }
+
     toast.classList.add('visible');
     if (copyToastTimer) window.clearTimeout(copyToastTimer);
     copyToastTimer = window.setTimeout(function() {

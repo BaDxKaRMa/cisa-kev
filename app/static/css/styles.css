@@ -98,21 +98,106 @@ h1, h2 {
     right: 18px;
     bottom: 18px;
     z-index: 20;
-    background: #1f2734;
+    display: grid;
+    grid-template-columns: 20px auto;
+    align-items: center;
+    column-gap: 8px;
+    min-width: 210px;
+    max-width: 300px;
+    background: #1a2332cc;
     color: #e6efff;
-    border: 1px solid #4f6e99;
-    border-radius: 8px;
-    padding: 8px 12px;
+    border: 1px solid #425a7e;
+    border-left: 3px solid #5d82b4;
+    border-radius: 10px;
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    padding: 9px 12px 10px;
     font-size: 0.9em;
     opacity: 0;
     transform: translateY(8px);
     pointer-events: none;
     transition: opacity 0.14s ease, transform 0.14s ease;
+    box-shadow: var(--surface-shadow-md);
 }
 
 .copy-toast.visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+.copy-toast-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #ffffff1a;
+    font-size: 0.78em;
+    font-weight: 700;
+}
+
+.copy-toast-text {
+    line-height: 1.2;
+}
+
+.copy-toast-progress {
+    grid-column: 1 / -1;
+    height: 2px;
+    border-radius: 999px;
+    margin-top: 6px;
+    background: #7ea6dd;
+    transform-origin: left center;
+    transform: scaleX(1);
+}
+
+.copy-toast-progress.animating {
+    animation: toastProgress 1.6s linear forwards;
+}
+
+.copy-toast-success {
+    border-left-color: #44b784;
+}
+
+.copy-toast-success .copy-toast-icon {
+    color: #9ef0c8;
+}
+
+.copy-toast-success .copy-toast-progress {
+    background: #44b784;
+}
+
+.copy-toast-error {
+    border-left-color: #d56a6a;
+}
+
+.copy-toast-error .copy-toast-icon {
+    color: #ffc7c7;
+}
+
+.copy-toast-error .copy-toast-progress {
+    background: #d56a6a;
+}
+
+.copy-toast-info .copy-toast-progress {
+    background: #7ea6dd;
+}
+
+@keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+@media (max-width: 900px) {
+    .copy-toast {
+        right: 50%;
+        transform: translate(50%, 8px);
+        width: min(92vw, 360px);
+        max-width: 92vw;
+    }
+    .copy-toast.visible {
+        transform: translate(50%, 0);
+    }
 }
 
 .visually-hidden {
