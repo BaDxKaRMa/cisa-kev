@@ -55,6 +55,19 @@
                     <option value="all">All</option>
                 </select>
             </label>
+            <details class="column-settings">
+                <summary>Columns</summary>
+                <div class="column-options">
+                    <label><input class="column-toggle" type="checkbox" data-col="0" checked> CVE ID</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="1" checked> Name</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="2" checked> Vendor</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="3" checked> Product</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="4" checked> Date Added</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="5" checked> Due Date</label>
+                    <label><input class="column-toggle" type="checkbox" data-col="6" checked> Ransomware</label>
+                    <button id="reset-columns" type="button" class="mini-btn">Reset Default</button>
+                </div>
+            </details>
             <!-- Ransomware filter removed: High Priority view covers this use case -->
             <div class="export-buttons">
                 <button class="export-btn" id="main-export-filtered">Export to CSV</button>

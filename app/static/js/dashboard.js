@@ -23,6 +23,37 @@ function dayDiff(fromDate, toDate) {
     return Math.round((toDate - fromDate) / msPerDay);
 }
 
+const DASHBOARD_SETTINGS_KEY = 'kevDashboardSettingsV1';
+const DEFAULT_COLUMN_VISIBILITY = {
+    0: true,
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+    6: true,
+};
+
+function loadDashboardSettings() {
+    try {
+        const raw = window.localStorage.getItem(DASHBOARD_SETTINGS_KEY);
+        if (!raw) return {};
+        return JSON.parse(raw) || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveDashboardSettings(partial) {
+    try {
+        const current = loadDashboardSettings();
+        const next = { ...current, ...partial };
+        window.localStorage.setItem(DASHBOARD_SETTINGS_KEY, JSON.stringify(next));
+    } catch {
+        // Ignore localStorage failures.
+    }
+}
+
 function describeDueDate(dueDateValue) {
     const dueDate = parseIsoDate(dueDateValue);
     if (!dueDate) return '';
@@ -59,6 +90,38 @@ function renderTableError(message) {
 function addTextCell(row, value) {
     const cell = document.createElement('td');
     cell.textContent = value ?? '';
+    row.appendChild(cell);
+}
+
+function addCveCell(row, value) {
+    const cell = document.createElement('td');
+    const cveText = value || '';
+    const trigger = document.createElement('span');
+    trigger.className = 'cve-copy';
+    trigger.textContent = cveText;
+    trigger.title = cveText ? 'Click to copy CVE ID' : '';
+    trigger.tabIndex = 0;
+
+    function copyCve(event) {
+        event.stopPropagation();
+        if (!cveText) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cveText)
+                .then(() => setStatusMessage(`Copied ${cveText}`))
+                .catch(() => setStatusMessage('Unable to copy CVE ID'));
+            return;
+        }
+        setStatusMessage('Clipboard not available');
+    }
+
+    trigger.addEventListener('click', copyCve);
+    trigger.addEventListener('keydown', function(event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        copyCve(event);
+    });
+
+    cell.appendChild(trigger);
     row.appendChild(cell);
 }
 
@@ -236,6 +299,23 @@ function toggleDetailRow(row, detailsRow) {
     });
 }
 
+function applyColumnVisibility(table, visibility) {
+    const allRows = table.querySelectorAll('tr');
+    const visibleCount = Object.values(visibility).filter(Boolean).length || 1;
+
+    allRows.forEach(row => {
+        if (row.classList.contains('details-row')) {
+            const detailsCell = row.cells[0];
+            if (detailsCell) detailsCell.colSpan = visibleCount;
+            return;
+        }
+
+        Array.from(row.cells).forEach((cell, idx) => {
+            cell.style.display = visibility[idx] === false ? 'none' : '';
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     fetch('./known_exploited_vulnerabilities.json')
         .then(response => {
@@ -273,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     row.classList.add('high-priority');
                 }
 
-                addTextCell(row, vulnerability.cveID);
+                addCveCell(row, vulnerability.cveID);
                 addTextCell(row, vulnerability.vulnerabilityName);
                 addTextCell(row, vulnerability.vendorProject);
                 addTextCell(row, vulnerability.product);
@@ -353,29 +433,83 @@ function initMainTableControls() {
     const pagination = document.getElementById('main-pagination');
     const viewSelector = document.getElementById('view-selector');
     const viewDesc = document.getElementById('view-desc');
+    const columnCheckboxes = Array.from(document.querySelectorAll('.column-toggle'));
+    const resetColumnsBtn = document.getElementById('reset-columns');
+    const loadedSettings = loadDashboardSettings();
 
     let currentPage = 1;
     let sortColumn = null;
     let sortDirection = 'asc';
     let currentVisibleRows = rows;
+    let columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) };
+
+    if (searchInput && typeof loadedSettings.search === 'string') {
+        searchInput.value = loadedSettings.search;
+    }
+    if (
+        perPageSelect &&
+        loadedSettings.perPage &&
+        perPageSelect.querySelector(`option[value="${loadedSettings.perPage}"]`)
+    ) {
+        perPageSelect.value = loadedSettings.perPage;
+    }
+    if (
+        viewSelector &&
+        loadedSettings.view &&
+        viewSelector.querySelector(`option[value="${loadedSettings.view}"]`)
+    ) {
+        viewSelector.value = loadedSettings.view;
+    }
 
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             currentPage = 1;
+            saveDashboardSettings({ search: searchInput.value });
             updateTable();
         });
     }
     if (perPageSelect) {
         perPageSelect.addEventListener('change', function() {
             currentPage = 1;
+            saveDashboardSettings({ perPage: perPageSelect.value });
             updateTable();
         });
     }
     if (viewSelector) {
         viewSelector.addEventListener('change', function() {
+            saveDashboardSettings({ view: viewSelector.value });
+            if (viewSelector.value === 'high' && sortColumn === null) {
+                sortColumn = 5;
+                sortDirection = 'asc';
+                renderSortIndicators();
+            }
             currentPage = 1;
             updateTable();
             updateViewDesc();
+        });
+    }
+
+    if (columnCheckboxes.length > 0) {
+        columnCheckboxes.forEach(checkbox => {
+            const index = Number(checkbox.dataset.col);
+            checkbox.checked = columnVisibility[index] !== false;
+            checkbox.addEventListener('change', function() {
+                columnVisibility[index] = checkbox.checked;
+                applyColumnVisibility(table, columnVisibility);
+                saveDashboardSettings({ columns: columnVisibility });
+            });
+        });
+    }
+
+    if (resetColumnsBtn) {
+        resetColumnsBtn.addEventListener('click', function() {
+            columnVisibility = { ...DEFAULT_COLUMN_VISIBILITY };
+            columnCheckboxes.forEach(checkbox => {
+                const index = Number(checkbox.dataset.col);
+                checkbox.checked = columnVisibility[index];
+            });
+            applyColumnVisibility(table, columnVisibility);
+            saveDashboardSettings({ columns: columnVisibility });
         });
     }
 
@@ -406,6 +540,18 @@ function initMainTableControls() {
     }
 
     const headers = table.querySelectorAll('thead th');
+    function renderSortIndicators() {
+        headers.forEach(h => {
+            h.textContent = h.getAttribute('data-original-text');
+        });
+        if (sortColumn === null) return;
+        const activeHeader = headers[sortColumn];
+        if (!activeHeader) return;
+        activeHeader.textContent =
+            activeHeader.getAttribute('data-original-text') +
+            (sortDirection === 'asc' ? ' ▲' : ' ▼');
+    }
+
     headers.forEach((header, columnIndex) => {
         header.setAttribute('data-original-text', header.textContent);
         header.setAttribute('data-sortable', 'true');
@@ -418,12 +564,7 @@ function initMainTableControls() {
                 sortColumn = columnIndex;
                 sortDirection = 'asc';
             }
-
-            headers.forEach(h => {
-                h.textContent = h.getAttribute('data-original-text');
-            });
-
-            header.textContent = header.getAttribute('data-original-text') + (sortDirection === 'asc' ? ' ▲' : ' ▼');
+            renderSortIndicators();
             currentPage = 1;
             updateTable();
         });
@@ -436,6 +577,13 @@ function initMainTableControls() {
         });
     }
 
+    if (viewSelector && viewSelector.value === 'high') {
+        sortColumn = 5;
+        sortDirection = 'asc';
+        renderSortIndicators();
+    }
+
+    applyColumnVisibility(table, columnVisibility);
     updateTable();
 
     function updateTable() {
