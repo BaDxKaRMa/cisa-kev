@@ -249,11 +249,11 @@ h1, h2 {
 
 .legend-color {
     display: inline-block;
-    width: 18px;
+    width: 4px;
     height: 18px;
     margin-right: 8px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
+    border-radius: 2px;
+    border: none;
 }
 
 .legend-past { background: var(--danger); }
@@ -504,17 +504,29 @@ tbody tr:nth-child(even) {
 tbody tr:hover {
     background: var(--table-row-hover);
 }
-tr.high-priority {
-    background: var(--status-high) !important;
-}
-tr.recent {
-    background: var(--status-recent) !important;
-}
-tr.due-date-past {
-    background: var(--status-due-past) !important;
-}
+tr.high-priority,
+tr.recent,
+tr.due-date-past,
 tr.due-date-soon {
-    background: var(--status-due-soon) !important;
+    position: relative;
+}
+tr.high-priority td:first-child,
+tr.recent td:first-child,
+tr.due-date-past td:first-child,
+tr.due-date-soon td:first-child {
+    border-left: 3px solid transparent;
+}
+tr.due-date-past td:first-child {
+    border-left-color: var(--danger);
+}
+tr.due-date-soon td:first-child {
+    border-left-color: var(--warning);
+}
+tr.high-priority td:first-child {
+    border-left-color: #ffb3b3;
+}
+tr.recent td:first-child {
+    border-left-color: var(--success);
 }
 .data-row {
     cursor: pointer;
@@ -572,9 +584,9 @@ tr.due-date-soon {
     border-radius: 999px;
 }
 .ransomware-known {
-    background: var(--badge-known-bg);
-    color: var(--badge-known-text);
-    border-color: var(--badge-known-border);
+    background: #3a1c1c;
+    color: var(--danger);
+    border-color: #6b2a2a;
 }
 .ransomware-unknown {
     background: var(--badge-unknown-bg);
@@ -582,11 +594,10 @@ tr.due-date-soon {
     border-color: var(--badge-unknown-border);
 }
 .details-row td {
-    background: var(--details-bg) !important;
-    border-top: 1px solid var(--border);
+    background: var(--background) !important;
+    border-top: none;
     border-bottom: 1px solid var(--border);
-    padding-top: 0.9em;
-    padding-bottom: 1em;
+    padding: 0;
 }
 .details-content {
     font-size: 0.94em;
@@ -594,18 +605,60 @@ tr.due-date-soon {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.16s ease, opacity 0.12s ease;
+    transition: max-height 0.2s ease, opacity 0.15s ease;
+    border-left: 3px solid var(--primary);
+    margin: 0 1em;
+    padding: 0;
 }
 .details-row.details-visible .details-content {
     max-height: 1200px;
     opacity: 1;
+    padding: 1em 1.2em;
+    margin: 0.6em 1em 0.8em;
 }
 .details-section {
-    margin: 0.48em 0;
-    line-height: 1.42;
+    margin-bottom: 0.8em;
+    line-height: 1.5;
+}
+.details-section:last-child {
+    margin-bottom: 0;
 }
 .details-section strong {
+    display: block;
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #6b7a8d;
+    margin-bottom: 0.3em;
+}
+.details-section span,
+.details-section .details-text {
     color: var(--text);
+    display: block;
+}
+.details-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin-top: 0.3em;
+}
+.details-links a {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 0.85em;
+    color: var(--primary);
+    background: #23304a;
+    border: 1px solid #3a5070;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.details-links a:hover {
+    background: #2c3d5a;
+    border-color: var(--primary);
 }
 .details-section a {
     color: var(--primary);
@@ -676,15 +729,13 @@ table td:nth-child(6) {
         right: 0;
         left: auto;
     }
-    .details-row td {
-        padding: 0.75em 0.55em 0.85em;
-    }
     .details-content {
         font-size: 0.9em;
+        margin: 0 0.5em;
     }
-    .details-section {
-        margin: 0.45em 0;
-        line-height: 1.4;
+    .details-row.details-visible .details-content {
+        margin: 0.5em 0.5em 0.6em;
+        padding: 0.8em 1em;
     }
     .ransomware-badge {
         padding: 3px 9px;
@@ -726,23 +777,17 @@ table td:nth-child(6) {
         min-width: 165px;
         padding: 8px;
     }
-    .details-row td {
-        padding: 0.65em 0.45em 0.75em;
-    }
     .details-content {
         font-size: 0.88em;
+        margin: 0 0.3em;
     }
-    .details-section {
-        margin: 0.5em 0;
+    .details-row.details-visible .details-content {
+        margin: 0.4em 0.3em 0.5em;
+        padding: 0.7em 0.8em;
     }
-    .details-section strong {
-        display: block;
-        margin-bottom: 2px;
-    }
-    .details-section a {
-        display: inline-block;
-        margin-right: 8px;
-        margin-bottom: 4px;
+    .details-links a {
+        font-size: 0.8em;
+        padding: 3px 10px;
     }
     .ransomware-badge {
         font-size: 0.78em;

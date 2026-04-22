@@ -21,15 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
       - name: Install uv
         run: |
@@ -81,7 +81,7 @@ jobs:
       - name: Run frontend tests
         run: npm run test:frontend
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Generate static site
         run: |
           uv run python app/generate_static.py
@@ -188,14 +188,14 @@ jobs:
       - name: Publish KEV summary in workflow UI
         run: cat build/kev-update-summary.md >> "$GITHUB_STEP_SUMMARY"
       - name: Upload KEV summary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kev-update-summary
           path: |
             build/kev-update-summary.md
             build/kev-update-summary.json
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./site
 
@@ -209,4 +209,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

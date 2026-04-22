@@ -149,6 +149,19 @@
             .trim();
     }
 
+    function buildDetailSection(labelText, bodyText) {
+        const section = document.createElement('div');
+        section.className = 'details-section';
+        const label = document.createElement('strong');
+        label.textContent = labelText;
+        section.appendChild(label);
+        const text = document.createElement('span');
+        text.className = 'details-text';
+        text.textContent = bodyText;
+        section.appendChild(text);
+        return section;
+    }
+
     function buildDetailRow(vulnerability, rowId) {
         const detailsRow = document.createElement('tr');
         detailsRow.className = 'details-row';
@@ -161,63 +174,46 @@
         const content = document.createElement('div');
         content.className = 'details-content';
 
-        const summary = document.createElement('div');
-        summary.className = 'details-section';
-        const summaryTitle = document.createElement('strong');
-        summaryTitle.textContent = 'Summary: ';
-        summary.appendChild(summaryTitle);
-        summary.appendChild(document.createTextNode(vulnerability.shortDescription || 'No summary available.'));
-        content.appendChild(summary);
+        content.appendChild(buildDetailSection(
+            'Summary',
+            vulnerability.shortDescription || 'No summary available.'
+        ));
 
-        const action = document.createElement('div');
-        action.className = 'details-section';
-        const actionTitle = document.createElement('strong');
-        actionTitle.textContent = 'Required Action: ';
-        action.appendChild(actionTitle);
-        action.appendChild(document.createTextNode(vulnerability.requiredAction || 'No required action provided.'));
-        content.appendChild(action);
+        content.appendChild(buildDetailSection(
+            'Required Action',
+            vulnerability.requiredAction || 'No required action provided.'
+        ));
 
         const notesText = extractPlainNotes(vulnerability.notes);
         if (notesText) {
-            const notes = document.createElement('div');
-            notes.className = 'details-section';
-            const notesTitle = document.createElement('strong');
-            notesTitle.textContent = 'Notes: ';
-            notes.appendChild(notesTitle);
-            notes.appendChild(document.createTextNode(notesText));
-            content.appendChild(notes);
+            content.appendChild(buildDetailSection('Notes', notesText));
         }
 
         if (Array.isArray(vulnerability.cwes) && vulnerability.cwes.length > 0) {
-            const cwes = document.createElement('div');
-            cwes.className = 'details-section';
-            const cwesTitle = document.createElement('strong');
-            cwesTitle.textContent = 'CWEs: ';
-            cwes.appendChild(cwesTitle);
-            cwes.appendChild(document.createTextNode(vulnerability.cwes.join(', ')));
-            content.appendChild(cwes);
+            content.appendChild(buildDetailSection('CWEs', vulnerability.cwes.join(', ')));
         }
 
         const links = uniqueLinks(vulnerability.cveID, vulnerability.notes);
         if (links.length > 0) {
             const linkSection = document.createElement('div');
             linkSection.className = 'details-section';
-            const linksTitle = document.createElement('strong');
-            linksTitle.textContent = 'Links: ';
-            linkSection.appendChild(linksTitle);
+            const linksLabel = document.createElement('strong');
+            linksLabel.textContent = 'Links';
+            linkSection.appendChild(linksLabel);
 
-            links.forEach((item, index) => {
+            const linkContainer = document.createElement('div');
+            linkContainer.className = 'details-links';
+
+            links.forEach(item => {
                 const anchor = document.createElement('a');
                 anchor.href = item.url;
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 anchor.textContent = item.label;
-                linkSection.appendChild(anchor);
-                if (index < links.length - 1) {
-                    linkSection.appendChild(document.createTextNode(' | '));
-                }
+                linkContainer.appendChild(anchor);
             });
 
+            linkSection.appendChild(linkContainer);
             content.appendChild(linkSection);
         }
 
