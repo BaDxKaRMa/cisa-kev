@@ -605,7 +605,7 @@ tr.recent td:first-child {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.2s ease, opacity 0.15s ease;
+    transition: max-height 0.4s ease-out, opacity 0.35s ease-out;
     border-left: 3px solid var(--primary);
     margin: 0 1em;
     padding: 0;

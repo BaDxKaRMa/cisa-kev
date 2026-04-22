@@ -222,27 +222,52 @@
         return detailsRow;
     }
 
+    function collapseRow(dataRow, detailRow, transitionMs) {
+        dataRow.setAttribute('aria-expanded', 'false');
+        dataRow.classList.remove('expanded');
+        detailRow.classList.remove('details-visible');
+        window.setTimeout(function() {
+            if (dataRow.getAttribute('aria-expanded') === 'false') {
+                detailRow.style.display = 'none';
+            }
+        }, transitionMs);
+    }
+
+    function collapseAllRows() {
+        var transitionMs = 400;
+        document.querySelectorAll('#main-table-body tr.data-row.expanded').forEach(function(openRow) {
+            var detail = openRow.nextElementSibling;
+            if (detail && detail.classList.contains('details-row')) {
+                collapseRow(openRow, detail, transitionMs);
+            }
+        });
+    }
+
     function toggleDetailRow(row, detailsRow) {
         const expanded = row.getAttribute('aria-expanded') === 'true';
-        const transitionMs = 170;
+        const transitionMs = 400;
 
         if (expanded) {
-            row.setAttribute('aria-expanded', 'false');
-            row.classList.remove('expanded');
-            detailsRow.classList.remove('details-visible');
-            window.setTimeout(function() {
-                if (row.getAttribute('aria-expanded') === 'false') {
-                    detailsRow.style.display = 'none';
-                }
-            }, transitionMs);
+            collapseRow(row, detailsRow, transitionMs);
             return;
         }
+
+        // auto-collapse any other open row
+        var openRows = document.querySelectorAll('#main-table-body tr.data-row.expanded');
+        openRows.forEach(function(openRow) {
+            var detail = openRow.nextElementSibling;
+            if (detail && detail.classList.contains('details-row')) {
+                collapseRow(openRow, detail, transitionMs);
+            }
+        });
 
         row.setAttribute('aria-expanded', 'true');
         row.classList.add('expanded');
         detailsRow.style.display = '';
         window.requestAnimationFrame(function() {
             detailsRow.classList.add('details-visible');
+            // after the new row starts expanding, scroll it into view smoothly
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
     }
 
@@ -281,6 +306,7 @@
         addRansomwareCell,
         buildDetailRow,
         toggleDetailRow,
+        collapseAllRows,
         applyColumnVisibility,
     });
 })();
