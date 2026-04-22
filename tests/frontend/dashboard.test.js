@@ -83,6 +83,16 @@ async function waitForCondition(predicate, timeoutMs = 2000) {
   throw new Error('Timed out waiting for condition');
 }
 
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+const DATE_ADDED_3 = daysAgo(3);
+const DATE_ADDED_2 = daysAgo(2);
+const DATE_ADDED_1 = daysAgo(1);
+
 function makeDataset() {
   return {
     vulnerabilities: [
@@ -91,7 +101,7 @@ function makeDataset() {
         vulnerabilityName: 'Vuln 3',
         vendorProject: 'Vendor C',
         product: 'Product C',
-        dateAdded: '2026-02-01',
+        dateAdded: DATE_ADDED_3,
         dueDate: '2026-02-20',
         knownRansomwareCampaignUse: 'Known',
         shortDescription: 'Desc 3',
@@ -104,7 +114,7 @@ function makeDataset() {
         vulnerabilityName: 'Vuln 1',
         vendorProject: 'Vendor A',
         product: 'Product A',
-        dateAdded: '2026-02-02',
+        dateAdded: DATE_ADDED_2,
         dueDate: '2026-02-05',
         knownRansomwareCampaignUse: 'Known',
         shortDescription: 'Desc 1',
@@ -117,7 +127,7 @@ function makeDataset() {
         vulnerabilityName: 'Vuln 2',
         vendorProject: 'Vendor B',
         product: 'Product B',
-        dateAdded: '2026-02-03',
+        dateAdded: DATE_ADDED_1,
         dueDate: '2026-02-10',
         knownRansomwareCampaignUse: 'Unknown',
         shortDescription: 'Desc 2',
@@ -170,7 +180,7 @@ test('default load uses recently added view sorted by date added descending', as
 
   expect(visibleRowsPage1.length).toBe(1);
   expect(document.getElementById('view-selector').value).toBe('recent');
-  expect(visibleRowsPage1[0].dataset.dateAdded).toBe('2026-02-03');
+  expect(visibleRowsPage1[0].dataset.dateAdded).toBe(DATE_ADDED_1);
 
   const pageTwoButton = Array.from(document.querySelectorAll('#main-pagination button'))
     .find(button => button.textContent.trim() === '2');
@@ -181,7 +191,7 @@ test('default load uses recently added view sorted by date added descending', as
   const visibleRowsPage2 = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
     .filter(row => row.style.display !== 'none');
   expect(visibleRowsPage2.length).toBe(1);
-  expect(visibleRowsPage2[0].dataset.dateAdded).toBe('2026-02-02');
+  expect(visibleRowsPage2[0].dataset.dateAdded).toBe(DATE_ADDED_2);
 });
 
 test('switching to high priority sorts by due date ascending', async () => {
