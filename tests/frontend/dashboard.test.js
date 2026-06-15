@@ -316,6 +316,42 @@ test('saved column order is applied on load', async () => {
   expect(reorderedHeaders[0]).toBe('Vendor');
 });
 
+test('CSV export uses clean headers even when a column is sorted', async () => {
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  // Sort by the CVE column so a sort indicator (▲) is appended to its header text.
+  const cveHeader = document.querySelector('#main-table thead th[data-col-key="cve"]');
+  expect(cveHeader).toBeTruthy();
+  cveHeader.click();
+  await waitForTick();
+  expect(cveHeader.textContent).toContain('▲');
+
+  // Capture the generated CSV blob instead of triggering a real download.
+  const originalCreate = window.URL.createObjectURL;
+  const originalRevoke = window.URL.revokeObjectURL;
+  const originalClick = window.HTMLAnchorElement.prototype.click;
+  let capturedBlob = null;
+  window.URL.createObjectURL = vi.fn(blob => { capturedBlob = blob; return 'blob:mock'; });
+  window.URL.revokeObjectURL = vi.fn();
+  window.HTMLAnchorElement.prototype.click = vi.fn();
+
+  try {
+    document.getElementById('main-export-filtered').click();
+    await waitForTick();
+
+    expect(capturedBlob).toBeTruthy();
+    const headerLine = (await capturedBlob.text()).split('\n')[0];
+    expect(headerLine).toContain('"CVE ID"');
+    expect(headerLine).not.toContain('▲');
+    expect(headerLine).not.toContain('▼');
+  } finally {
+    window.URL.createObjectURL = originalCreate;
+    window.URL.revokeObjectURL = originalRevoke;
+    window.HTMLAnchorElement.prototype.click = originalClick;
+  }
+});
+
 test('column settings menu closes when clicking outside', async () => {
   dispatchDomReady();
   await waitForCondition(() => document.querySelectorAll('.column-toggle').length > 0);

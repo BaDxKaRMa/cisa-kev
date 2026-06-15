@@ -576,7 +576,10 @@
         const visibleHeaders = Array.from(table.querySelectorAll('thead th'))
             .filter(th => th.style.display !== 'none');
 
-        const headers = visibleHeaders.map(th => `"${th.textContent.replace(/"/g, '""')}"`);
+        const headers = visibleHeaders.map(th => {
+            const text = th.getAttribute('data-original-text') || th.textContent;
+            return `"${text.replace(/"/g, '""')}"`;
+        });
         let csvContent = headers.join(',') + '\n';
 
         rows.forEach(row => {
