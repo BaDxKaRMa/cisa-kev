@@ -1,7 +1,7 @@
 # CISA KEV Dashboard
 
 ![CISA KEV Dashboard](https://img.shields.io/badge/CISA-KEV%20Dashboard-blue)
-![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Python](https://img.shields.io/badge/Python-3.13-blue)
 [![Deploy Workflow](https://github.com/BaDxKaRMa/cisa-kev/actions/workflows/deploy.yml/badge.svg)](https://github.com/BaDxKaRMa/cisa-kev/actions/workflows/deploy.yml)
 ![GitHub Pages](https://img.shields.io/badge/GitHub-Pages-blueviolet)
 
@@ -21,7 +21,7 @@ A modern, interactive dashboard for monitoring and exploring CISA's Known Exploi
 
 ## 📋 Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - [uv](https://github.com/astral-sh/uv) for dependency management (recommended)
 
 ## 🛠️ Development Setup
