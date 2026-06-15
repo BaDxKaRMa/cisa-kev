@@ -14,18 +14,48 @@
         <h1>CISA Known Exploited Vulnerabilities</h1>
         <p class="page-subtitle">Daily-updated tracking and triage view for the CISA KEV catalog.</p>
     </header>
-    <div class="section">
-        <strong>Catalog Version:</strong> {{ catalogVersion }}<br>
-        <strong>Date Released:</strong> {{ dateReleased }}<br>
-        <strong>Last Synced (UTC):</strong> {{ lastSynced }}<br>
-        <strong>Total Vulnerabilities:</strong> {{ count }}
+    <div class="stat-bar">
+        <div class="stat-card stat-card--primary">
+            <span class="stat-value">{{ countDisplay }}</span>
+            <span class="stat-label">Tracked vulnerabilities</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">{{ catalogVersion }}</span>
+            <span class="stat-label">Catalog version</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value stat-value--sm">{{ dateReleased }}</span>
+            <span class="stat-label">Released</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value stat-value--sm">{{ lastSynced }}</span>
+            <span class="stat-label">Last synced</span>
+        </div>
     </div>
 
-    <div class="legend">
-        <div class="legend-item"><span class="legend-color legend-past"></span> Due date passed</div>
-        <div class="legend-item"><span class="legend-color legend-soon"></span> Due date within 14 days</div>
-        <div class="legend-item"><span class="legend-color legend-high"></span> Known ransomware use</div>
-        <div class="legend-item"><span class="legend-color legend-recent"></span> Added in last 30 days</div>
+    <div class="triage-bar" role="group" aria-label="Filter vulnerabilities by status">
+        <span class="triage-bar__title">Triage</span>
+        <button type="button" class="triage-chip" data-status="past" aria-pressed="false">
+            <span class="chip-dot chip-dot--past"></span>
+            <span class="chip-label">Past due</span>
+            <span class="chip-count" data-count-for="past">—</span>
+        </button>
+        <button type="button" class="triage-chip" data-status="soon" aria-pressed="false">
+            <span class="chip-dot chip-dot--soon"></span>
+            <span class="chip-label">Due in ≤14 days</span>
+            <span class="chip-count" data-count-for="soon">—</span>
+        </button>
+        <button type="button" class="triage-chip" data-status="ransomware" aria-pressed="false">
+            <span class="chip-dot chip-dot--ransomware"></span>
+            <span class="chip-label">Ransomware</span>
+            <span class="chip-count" data-count-for="ransomware">—</span>
+        </button>
+        <button type="button" class="triage-chip" data-status="recent" aria-pressed="false">
+            <span class="chip-dot chip-dot--recent"></span>
+            <span class="chip-label">Added in ≤30 days</span>
+            <span class="chip-count" data-count-for="recent">—</span>
+        </button>
+        <button type="button" class="triage-clear" id="triage-clear" hidden>Clear filters</button>
     </div>
 
 

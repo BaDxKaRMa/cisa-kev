@@ -15,6 +15,35 @@
         6: true,
     };
     const DEFAULT_COLUMN_ORDER = COLUMNS.map(column => column.key);
+    const TRIAGE_STATUSES = ['past', 'soon', 'ransomware', 'recent'];
+
+    function getDateThresholds() {
+        const fmt = DATE.formatLocalDate ? DATE.formatLocalDate : () => '';
+        const today = new Date();
+        const twoWeeks = new Date(today);
+        twoWeeks.setDate(today.getDate() + 14);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        return {
+            todayStr: fmt(today),
+            twoWeeksStr: fmt(twoWeeks),
+            thirtyDaysAgoStr: fmt(thirtyDaysAgo),
+        };
+    }
+
+    function rowStatuses(row, thresholds) {
+        const statuses = new Set();
+        const dateAdded = row.dataset.dateAdded || '';
+        const dueDate = row.dataset.dueDate || '';
+        const ransomware = row.dataset.ransomware || '';
+        if (dateAdded && dateAdded >= thresholds.thirtyDaysAgoStr) statuses.add('recent');
+        if (ransomware === 'Known') statuses.add('ransomware');
+        if (dueDate) {
+            if (dueDate < thresholds.todayStr) statuses.add('past');
+            else if (dueDate <= thresholds.twoWeeksStr) statuses.add('soon');
+        }
+        return statuses;
+    }
 
     function loadDashboardSettings() {
         try {
@@ -53,15 +82,7 @@
     }
 
     function highlightDueDates() {
-        const today = new Date();
-        const twoWeeksFromNow = new Date(today);
-        twoWeeksFromNow.setDate(today.getDate() + 14);
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-
-        const todayStr = DATE.formatLocalDate ? DATE.formatLocalDate(today) : '';
-        const twoWeeksStr = DATE.formatLocalDate ? DATE.formatLocalDate(twoWeeksFromNow) : '';
-        const thirtyDaysAgoStr = DATE.formatLocalDate ? DATE.formatLocalDate(thirtyDaysAgo) : '';
+        const { todayStr, twoWeeksStr, thirtyDaysAgoStr } = getDateThresholds();
 
         const table = document.getElementById('main-table');
         if (!table) return;
@@ -151,6 +172,52 @@
             columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY, ...(loadedSettings.columns || {}) },
         };
         let columnCheckboxes = [];
+
+        const triageChips = Array.from(document.querySelectorAll('.triage-chip'));
+        const triageClearBtn = document.getElementById('triage-clear');
+        const activeStatuses = new Set();
+
+        function updateTriageCounts(counts) {
+            triageChips.forEach(chip => {
+                const status = chip.dataset.status;
+                const badge = chip.querySelector('.chip-count');
+                if (badge && counts && status in counts) {
+                    badge.textContent = String(counts[status]);
+                }
+            });
+        }
+
+        function syncTriageClear() {
+            if (triageClearBtn) triageClearBtn.hidden = activeStatuses.size === 0;
+        }
+
+        triageChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                const status = chip.dataset.status;
+                if (!status) return;
+                if (activeStatuses.has(status)) {
+                    activeStatuses.delete(status);
+                    chip.setAttribute('aria-pressed', 'false');
+                } else {
+                    activeStatuses.add(status);
+                    chip.setAttribute('aria-pressed', 'true');
+                }
+                state.currentPage = 1;
+                syncTriageClear();
+                updateTable();
+            });
+        });
+
+        if (triageClearBtn) {
+            triageClearBtn.addEventListener('click', function() {
+                activeStatuses.clear();
+                triageChips.forEach(c => c.setAttribute('aria-pressed', 'false'));
+                state.currentPage = 1;
+                syncTriageClear();
+                updateTable();
+            });
+        }
+        syncTriageClear();
 
         if (searchInput && typeof loadedSettings.search === 'string') {
             searchInput.value = loadedSettings.search;
@@ -335,11 +402,13 @@
         function renderSortIndicators() {
             headers.forEach(header => {
                 header.textContent = header.getAttribute('data-original-text');
+                header.classList.remove('sorted');
             });
             if (!state.sortKey) return;
 
             const activeHeader = table.querySelector(`thead th[data-col-key="${state.sortKey}"]`);
             if (!activeHeader) return;
+            activeHeader.classList.add('sorted');
             activeHeader.textContent =
                 activeHeader.getAttribute('data-original-text') +
                 (state.sortDirection === 'asc' ? ' ▲' : ' ▼');
@@ -435,10 +504,8 @@
             const perPageValue = perPageSelect ? perPageSelect.value : '25';
             const perPage = perPageValue.toLowerCase() === 'all' ? rows.length : parseInt(perPageValue, 10);
             const viewValue = viewSelector ? viewSelector.value : 'recent';
-            const today = new Date();
-            const thirtyDaysAgo = new Date(today);
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            const thirtyDaysAgoStr = DATE.formatLocalDate ? DATE.formatLocalDate(thirtyDaysAgo) : '';
+            const thresholds = getDateThresholds();
+            const thirtyDaysAgoStr = thresholds.thirtyDaysAgoStr;
 
             let visibleRows = rows.filter(row => {
                 const dateAdded = row.dataset.dateAdded || '';
@@ -457,6 +524,25 @@
                     const detailsRow = row.nextElementSibling;
                     const detailsText = detailsRow && detailsRow.classList.contains('details-row') ? detailsRow.textContent : '';
                     return (row.textContent + ' ' + detailsText).toLowerCase().includes(filterText);
+                });
+            }
+
+            // Triage counts reflect the current view/search set; chips then filter it.
+            const statusCounts = { past: 0, soon: 0, ransomware: 0, recent: 0 };
+            visibleRows.forEach(row => {
+                rowStatuses(row, thresholds).forEach(status => {
+                    if (status in statusCounts) statusCounts[status] += 1;
+                });
+            });
+            updateTriageCounts(statusCounts);
+
+            if (activeStatuses.size > 0) {
+                visibleRows = visibleRows.filter(row => {
+                    const statuses = rowStatuses(row, thresholds);
+                    for (const status of activeStatuses) {
+                        if (statuses.has(status)) return true;
+                    }
+                    return false;
                 });
             }
 

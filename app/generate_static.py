@@ -10,11 +10,25 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.data_utils import load_local_data, update_if_changed
 
 
+DISPLAY_DATETIME = "%b %d, %Y · %H:%M UTC"
+
+
 def get_last_synced_utc(data_path):
     if not os.path.exists(data_path):
         return "N/A"
     modified = datetime.fromtimestamp(os.path.getmtime(data_path), UTC)
-    return modified.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return modified.strftime(DISPLAY_DATETIME)
+
+
+def format_released(value):
+    """Humanize CISA's ISO timestamp (e.g. 2026-06-12T16:46:48.0549Z)."""
+    if not value or value == "N/A":
+        return "N/A"
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed.strftime(DISPLAY_DATETIME)
+    except (ValueError, TypeError):
+        return value
 
 
 def main():
@@ -40,14 +54,16 @@ def main():
     data_src = os.path.join(
         os.path.dirname(__file__), "..", "data", "known_exploited_vulnerabilities.json"
     )
+    count_value = data.get("count", 0)
     html = template.render(
         catalogVersion=data.get("catalogVersion", "N/A"),
-        dateReleased=data.get("dateReleased", "N/A"),
+        dateReleased=format_released(data.get("dateReleased", "N/A")),
         lastSynced=get_last_synced_utc(data_src),
-        count=data.get("count", 0),
+        count=count_value,
+        countDisplay=f"{count_value:,}" if isinstance(count_value, int) else count_value,
         vulns=data.get("vulnerabilities", []),
     )
-    with open(os.path.join(output_dir, "index.html"), "w") as f:
+    with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
 
     # Copy static assets

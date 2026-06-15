@@ -31,6 +31,13 @@ function createStorageMock() {
 function createBaseDom() {
   document.body.innerHTML = `
     <div id="main-status"></div>
+    <div class="triage-bar" role="group">
+      <button type="button" class="triage-chip" data-status="past" aria-pressed="false"><span class="chip-count" data-count-for="past">—</span></button>
+      <button type="button" class="triage-chip" data-status="soon" aria-pressed="false"><span class="chip-count" data-count-for="soon">—</span></button>
+      <button type="button" class="triage-chip" data-status="ransomware" aria-pressed="false"><span class="chip-count" data-count-for="ransomware">—</span></button>
+      <button type="button" class="triage-chip" data-status="recent" aria-pressed="false"><span class="chip-count" data-count-for="recent">—</span></button>
+      <button type="button" class="triage-clear" id="triage-clear" hidden>Clear filters</button>
+    </div>
     <select id="view-selector">
       <option value="recent">Recently Added</option>
       <option value="high">High Priority</option>
@@ -350,6 +357,43 @@ test('CSV export uses clean headers even when a column is sorted', async () => {
     window.URL.revokeObjectURL = originalRevoke;
     window.HTMLAnchorElement.prototype.click = originalClick;
   }
+});
+
+test('triage chips show live counts and filter rows by status', async () => {
+  // All three fixtures are recent and past-due; two are ransomware-known.
+  window.localStorage.setItem(
+    'kevDashboardSettingsV1',
+    JSON.stringify({ perPage: '25' }),
+  );
+  dispatchDomReady();
+  await waitForCondition(() => document.querySelectorAll('#main-table-body tr.data-row').length > 0);
+
+  const countFor = status =>
+    document.querySelector(`.triage-chip[data-status="${status}"] .chip-count`).textContent;
+  expect(countFor('ransomware')).toBe('2');
+  expect(countFor('past')).toBe('3');
+  expect(countFor('recent')).toBe('3');
+  expect(countFor('soon')).toBe('0');
+
+  // Activating the ransomware chip narrows to the two Known rows.
+  const ransomwareChip = document.querySelector('.triage-chip[data-status="ransomware"]');
+  ransomwareChip.click();
+  await waitForTick();
+
+  expect(ransomwareChip.getAttribute('aria-pressed')).toBe('true');
+  expect(document.getElementById('triage-clear').hidden).toBe(false);
+  let visible = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .filter(row => row.style.display !== 'none');
+  expect(visible.length).toBe(2);
+  expect(visible.every(r => r.dataset.ransomware === 'Known')).toBe(true);
+
+  // Clearing restores the full set.
+  document.getElementById('triage-clear').click();
+  await waitForTick();
+  visible = Array.from(document.querySelectorAll('#main-table-body tr.data-row'))
+    .filter(row => row.style.display !== 'none');
+  expect(visible.length).toBe(3);
+  expect(ransomwareChip.getAttribute('aria-pressed')).toBe('false');
 });
 
 test('column settings menu closes when clicking outside', async () => {
