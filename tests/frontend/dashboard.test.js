@@ -57,7 +57,7 @@ function createBaseDom() {
     <div id="main-pagination"></div>
     <table id="main-table">
       <thead><tr>
-        <th>CVE ID</th><th>Name</th><th>Vendor</th><th>Product</th><th>Date Added</th><th>Due Date</th><th>Ransomware</th>
+        <th>CVE ID</th><th>Name</th><th>Vendor</th><th>Product</th><th>Date Added</th><th>Due Date</th><th>Ransomware Use</th>
       </tr></thead>
       <tbody id="main-table-body"></tbody>
     </table>
