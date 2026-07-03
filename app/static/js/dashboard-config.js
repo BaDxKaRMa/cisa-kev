@@ -6,7 +6,7 @@
         Object.freeze({ key: 'product', label: 'Product', index: 3, exportable: true }),
         Object.freeze({ key: 'dateAdded', label: 'Date Added', index: 4, exportable: true }),
         Object.freeze({ key: 'dueDate', label: 'Due Date', index: 5, exportable: true }),
-        Object.freeze({ key: 'ransomware', label: 'Ransomware', index: 6, exportable: true }),
+        Object.freeze({ key: 'ransomware', label: 'Ransomware Use', index: 6, exportable: true }),
     ]);
 
     const COLUMN_INDEX = Object.freeze(

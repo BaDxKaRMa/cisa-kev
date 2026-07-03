@@ -173,6 +173,20 @@
         };
         let columnCheckboxes = [];
 
+        const densityToggle = document.getElementById('density-toggle');
+        if (densityToggle) {
+            const applyDensity = compact => {
+                table.classList.toggle('density-compact', compact);
+                densityToggle.setAttribute('aria-pressed', compact ? 'true' : 'false');
+            };
+            applyDensity(loadedSettings.density === 'compact');
+            densityToggle.addEventListener('click', function() {
+                const compact = !table.classList.contains('density-compact');
+                applyDensity(compact);
+                saveDashboardSettings({ density: compact ? 'compact' : 'default' });
+            });
+        }
+
         const triageChips = Array.from(document.querySelectorAll('.triage-chip'));
         const triageClearBtn = document.getElementById('triage-clear');
         const activeStatuses = new Set();

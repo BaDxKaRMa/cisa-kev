@@ -20,6 +20,21 @@
                 const vulnerabilities = Array.isArray(data.vulnerabilities) ? data.vulnerabilities : [];
                 tbody.innerHTML = '';
 
+                // Hero card live metric: how many entries CISA added in the last 7 days.
+                const weekEl = document.getElementById('stat-added-week');
+                if (weekEl && DATE.formatLocalDate) {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const weekAgoStr = DATE.formatLocalDate(weekAgo);
+                    const addedThisWeek = vulnerabilities.filter(v => (v.dateAdded || '') >= weekAgoStr).length;
+                    if (addedThisWeek > 0) {
+                        weekEl.textContent = `${addedThisWeek} added this week`;
+                        weekEl.classList.add('stat-delta--up');
+                    } else {
+                        weekEl.textContent = 'No new entries this week';
+                    }
+                }
+
                 vulnerabilities.forEach((vulnerability, index) => {
                     const row = document.createElement('tr');
                     row.classList.add('data-row');
