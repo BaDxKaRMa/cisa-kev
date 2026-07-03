@@ -1,0 +1,53 @@
+name: Update vendored count.js
+
+# Dependabot can't track vendored files, so this is the equivalent for the
+# self-hosted GoatCounter counter: monthly (and on demand) it re-fetches
+# upstream count.js and, if it differs from the committed copy, opens a PR.
+# No PR is created when nothing changed.
+on:
+  schedule:
+    - cron: '0 4 1 * *'  # 1st of each month, 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-count-js
+  cancel-in-progress: true
+
+env:
+  # Same source the file was originally vendored from.
+  UPSTREAM: https://raw.githubusercontent.com/arp242/goatcounter/master/public/count.js
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Fetch upstream count.js
+        run: |
+          curl -sSL --retry 3 --retry-delay 5 --retry-all-errors --max-time 30 \
+            "$UPSTREAM" -o app/static/js/count.js
+          # Guard against a truncated/empty download replacing a good file.
+          test -s app/static/js/count.js
+      - name: Open PR if upstream changed
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: chore/update-count-js
+          delete-branch: true
+          commit-message: "deps: update vendored GoatCounter count.js"
+          title: "deps: update vendored GoatCounter count.js"
+          labels: dependencies
+          body: |
+            Upstream GoatCounter `count.js` differs from the vendored copy in
+            `app/static/js/count.js`, so this PR pulls the latest.
+
+            Source: ${{ env.UPSTREAM }}
+
+            ⚠️ Review the diff before merging — this is third-party JS served
+            under a strict CSP. It is **not** auto-merged (Dependabot auto-merge
+            only applies to `dependabot[bot]` PRs).
