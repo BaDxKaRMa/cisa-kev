@@ -9,19 +9,22 @@ on:
     - cron: '0 0 * * *'  # every day at midnight
   workflow_dispatch:
 
+# Least privilege at the top; each job widens only what it needs.
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write  # push the refreshed KEV data commit
+      pages: write     # configure-pages / upload-pages-artifact
+    # Supersede in-flight builds for the same ref, but never cancel a
+    # deploy (that has its own non-cancelling group below).
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python
@@ -89,6 +92,51 @@ jobs:
         run: |
           uv run python app/generate_static.py
           touch site/.nojekyll
+      - name: Check KEV data freshness
+        # Non-fatal alarm: update_if_changed() silently falls back to the local
+        # copy when the CISA fetch fails, so a "green" build can still ship stale
+        # data. Surface it as a warning + step-summary banner instead of failing.
+        env:
+          KEV_WARN_DAYS: "7"
+        run: |
+          uv run python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          warn_days = int(os.environ.get("KEV_WARN_DAYS", "7"))
+          data = json.loads(
+              Path("data/known_exploited_vulnerabilities.json").read_text(encoding="utf-8")
+          )
+          released = data.get("dateReleased")
+          count = data.get("count", "?")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+
+          def banner(text):
+              with summary.open("a", encoding="utf-8") as fh:
+                  fh.write(f"\n> ⚠️ **{text}**\n")
+
+          if not released:
+              print("::warning title=KEV freshness::dateReleased missing from catalog")
+              banner("KEV data has no dateReleased field")
+              raise SystemExit(0)
+
+          try:
+              dt = datetime.fromisoformat(released.replace("Z", "+00:00"))
+          except ValueError:
+              print(f"::warning title=KEV freshness::Unparseable dateReleased: {released}")
+              banner(f"KEV data dateReleased is unparseable: {released}")
+              raise SystemExit(0)
+
+          age = (datetime.now(timezone.utc) - dt).days
+          msg = f"Catalog dateReleased {released} is {age} day(s) old ({count} CVEs)."
+          if age > warn_days:
+              print(f"::warning title=KEV data may be stale::{msg} The CISA feed may be failing.")
+              banner(f"Stale data: {msg} The CISA feed may be failing.")
+          else:
+              print(msg)
+          PY
       - name: Commit refreshed KEV data
         if: github.event_name != 'pull_request'
         run: |
@@ -220,10 +268,27 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 10
+    permissions:
+      pages: write      # deploy the Pages artifact
+      id-token: write   # OIDC token for deploy-pages
+    # Serialize deploys and never cancel one mid-flight.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
+      # The Pages API intermittently returns "Deployment failed, try again
+      # later." One automatic retry turns those transient flakes into a pass.
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+      - name: Wait before deploy retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - name: Deploy to GitHub Pages (retry)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v5

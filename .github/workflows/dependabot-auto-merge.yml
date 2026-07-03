@@ -1,9 +1,16 @@
 name: Dependabot auto-merge
 on: pull_request_target
 
+# Least privilege: enough to read metadata and merge, nothing more.
 permissions:
   contents: write
   pull-requests: write
+  checks: read
+
+# One run per PR; a new push supersedes an in-flight wait.
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   dependabot:
@@ -15,10 +22,26 @@ jobs:
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable auto-merge for patch and minor updates
+      - name: Wait for CI, then auto-merge patch and minor updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+        # This repo can't use branch protection to gate the merge: CI auto-commits
+        # refreshed KEV data by pushing directly to main, which required status
+        # checks would block. So gate here instead — block on the PR's own checks
+        # and merge only if they pass. Runs under `bash -eo pipefail`, so a
+        # non-zero `gh pr checks` aborts the step before the merge.
+        run: |
+          # Wait (up to ~5 min) for the PR's CI checks to register.
+          for _ in $(seq 1 20); do
+            if [ -n "$(gh pr checks "$PR_URL" 2>/dev/null)" ]; then
+              break
+            fi
+            echo "Waiting for CI checks to register..."
+            sleep 15
+          done
+          # Block until checks finish; exit non-zero on the first failure.
+          gh pr checks "$PR_URL" --watch --fail-fast --interval 30
+          # Reached only when every check passed.
+          gh pr merge --squash --delete-branch "$PR_URL"
