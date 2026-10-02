@@ -11,6 +11,7 @@ uv sync --locked                                  # install Python deps (request
 npm ci                                            # install frontend test deps (vitest + jsdom only)
 uv run python -m unittest discover -s tests -v    # Python unit tests (stdlib unittest — pytest is NOT installed)
 npm run test:frontend                             # frontend tests (vitest run); watch: npm run test:frontend:watch
+node --test tests/workflows/*.test.cjs              # isolated KEV updater tests (mocked network/GitHub)
 uv run python app/generate_static.py              # fetch/refresh KEV data + regenerate site/ (hits live CISA endpoint)
 uv run python -m py_compile app/*.py              # Python syntax check
 python3 -m http.server 4173 --directory site      # local preview (.claude/launch.json "site"); no watch — re-run generator first
@@ -26,8 +27,8 @@ python3 -m http.server 4173 --directory site      # local preview (.claude/launc
 
 ## CI / deploy
 
-- Main workflow `.github/workflows/deploy.yml`: push/PR to main, daily cron, manual dispatch. PRs run the full build (tests, generator, smoke test) but skip the data auto-commit, Pages artifact upload, and deploy. The auto-commit is gated on event != `pull_request`; the deploy job additionally requires ref == `refs/heads/main`.
-- CI auto-commits the refreshed `data/known_exploited_vulnerabilities.json` as github-actions[bot] with `chore: update KEV data [skip ci]`.
+- Main workflow `.github/workflows/deploy.yml`: push/PR to main, daily cron, manual dispatch. All dependency installation, tests, generator, and smoke tests run with read-only contents permission and no persisted checkout credentials. Pages artifact upload, data commits, and deployment require `refs/heads/main` and an explicit push, schedule, or manual-dispatch event.
+- After a successful build, a separate `update_data` runner independently fetches the official CISA catalog and commits only `data/known_exploited_vulnerabilities.json` through the GitHub Contents API as github-actions[bot] with `chore: update KEV data [skip ci]`. It has no checkout, project dependencies, or build-artifact inputs; keep it that way. The build and writer may observe slightly different catalog snapshots if CISA updates between their fetches. A fetch outage keeps the committed data; invalid catalog structure or concurrent file changes fail safely. The separate deploy job configures and deploys Pages after both jobs succeed.
 - A second workflow, `.github/workflows/dependabot-auto-merge.yml`, auto-merges Dependabot patch/minor PRs (squash) via `pull_request_target` with `contents: write` — be careful editing it.
 - The smoke test hard-codes required tokens in `site/index.html` (`id="main-table"`, `id="view-selector"`, `id="main-search"`, the dashboard-dom.js/dashboard-table.js script paths) and requires exactly the six dashboard JS files. Renaming IDs/files or adding a JS module means updating the "Validate JavaScript syntax" and "Smoke test generated site" steps too.
 
